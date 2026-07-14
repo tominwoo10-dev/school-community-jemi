@@ -6,7 +6,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 const $ = (selector) => document.querySelector(selector);
 
 let currentUser = null, currentProfile = null, currentBoard = "고민", selectedPostId = null, isAdmin = false;
-let activeTargetDm = null; 
+let activeConversationId = null, activeChatPartner = null, chatRealtimeChannel = null, dmSearchDebounce = null;
 
 const studentEmail = (studentId) => `student-${studentId.trim()}@school-community.invalid`;
 const escapeHtml = (text) => { const div = document.createElement("div"); div.textContent = text || ""; return div.innerHTML; };
@@ -34,13 +34,12 @@ function updateHeader() {
 }
 
 function showPage(name) { 
-  if (["boards", "write", "detail", "dms"].includes(name) && !currentUser) { 
+  if (["boards", "write", "detail", "dms", "chat"].includes(name) && !currentUser) { 
     toast("로그인이 필요한 페이지입니다."); 
     name = "login"; 
   } 
-  
-  const dmModal = $("#dm-modal");
-  if (dmModal) dmModal.style.display = "none";
+
+  if (name !== "chat") unsubscribeFromChat();
   document.body.style.overflow = "";
 
   document.querySelectorAll(".page").forEach((page) => page.classList.remove("active")); 
@@ -49,7 +48,8 @@ function showPage(name) {
   
   if (name === "boards") loadPosts(); 
   if (name === "detail") loadDetail(); 
-  if (name === "dms") loadDms();
+  if (name === "dms") loadConversations();
+  if (name === "chat") loadChatMessages();
   window.scrollTo(0, 0); 
 }
 
@@ -107,7 +107,7 @@ async function loadDetail() {
 
   if (!ownPost && $("#btn-open-dm")) {
     $("#btn-open-dm").addEventListener("click", () => {
-      openDmModal(post.author_id, post.author_nickname);
+      startConversationAndOpen(post.author_id, post.author_nickname);
     });
   }
 
@@ -127,71 +127,222 @@ async function loadDetail() {
   `).join("") : `<div class="comment" style="color:var(--muted); font-size:14px;">작성된 첫 댓글이 없습니다.</div>`;
 }
 
-function openDmModal(receiverId, receiverNickname) {
-  if (!currentUser) return toast("로그인이 필요합니다.");
-  if (receiverId === currentUser.id) return toast("자기 자신에게 쪽지를 보낼 수 없습니다.");
-  activeTargetDm = { id: receiverId, nickname: receiverNickname };
-  $("#dm-modal-receiver-name").textContent = receiverNickname;
-  $("#dm-modal-message").value = "";
-  $("#dm-modal").style.display = "flex";
-  document.body.style.overflow = "hidden"; 
+// ------------------------------------------------------------
+// DM(1:1 채팅) 시스템
+// ------------------------------------------------------------
+
+async function startConversationAndOpen(otherId, otherNickname) {
+  if (!currentUser || !currentProfile) return toast("로그인이 필요합니다.");
+  if (otherId === currentUser.id) return toast("자기 자신에게는 메시지를 보낼 수 없습니다.");
+
+  const { data: conversationId, error } = await supabase.rpc("start_conversation", {
+    other_user: otherId,
+    my_nickname: currentProfile.nickname,
+    other_nickname: otherNickname
+  });
+
+  if (error) return toast(`대화를 시작하지 못했습니다: ${error.message}`);
+
+  activeConversationId = conversationId;
+  activeChatPartner = { id: otherId, nickname: otherNickname };
+  $("#dm-search-input").value = "";
+  $("#dm-search-results").hidden = true;
+  showPage("chat");
 }
 
-$("#dm-modal-cancel").addEventListener("click", () => { 
-  $("#dm-modal").style.display = "none"; 
-  document.body.style.overflow = ""; 
+async function loadConversations() {
+  if (!currentUser) return;
+
+  const { data: convs, error } = await supabase
+    .from("school_community_conversations")
+    .select("*")
+    .or(`user1.eq.${currentUser.id},user2.eq.${currentUser.id}`)
+    .order("last_message_at", { ascending: false });
+
+  if (error) return toast(`대화 목록을 불러오지 못했습니다: ${error.message}`);
+
+  const { data: unreadRows } = await supabase
+    .from("school_community_messages")
+    .select("conversation_id")
+    .neq("sender_id", currentUser.id)
+    .eq("is_read", false);
+
+  const unreadCounts = {};
+  (unreadRows || []).forEach((row) => {
+    unreadCounts[row.conversation_id] = (unreadCounts[row.conversation_id] || 0) + 1;
+  });
+
+  const list = $("#dm-conversation-list");
+  if (!list) return;
+
+  list.innerHTML = convs.length ? convs.map((conv) => {
+    const isUser1 = conv.user1 === currentUser.id;
+    const partnerId = isUser1 ? conv.user2 : conv.user1;
+    const partnerNickname = isUser1 ? conv.user2_nickname : conv.user1_nickname;
+    const unread = unreadCounts[conv.id] || 0;
+    return `
+      <button class="conversation-row" data-conversation-id="${conv.id}" data-partner-id="${partnerId}" data-partner-nickname="${escapeHtml(partnerNickname)}" type="button">
+        <span class="conversation-name">${escapeHtml(partnerNickname)}</span>
+        <span class="conversation-preview">${escapeHtml(conv.last_message || "대화를 시작해보세요.")}</span>
+        <span class="conversation-time">${time(conv.last_message_at)}</span>
+        ${unread ? `<span class="unread-badge">${unread > 99 ? "99+" : unread}</span>` : ""}
+      </button>
+    `;
+  }).join("") : `<div class="post-row" style="text-align:center; color:var(--muted);">아직 대화가 없습니다. 위에서 학우를 검색해 대화를 시작해보세요.</div>`;
+}
+
+$("#dm-search-input").addEventListener("input", (event) => {
+  clearTimeout(dmSearchDebounce);
+  const query = event.target.value.trim();
+  const resultsBox = $("#dm-search-results");
+  if (!query) {
+    resultsBox.hidden = true;
+    resultsBox.innerHTML = "";
+    return;
+  }
+  dmSearchDebounce = setTimeout(async () => {
+    // 익명성 보호: 닉네임으로만 검색하며, 실명/학번/학년/반은 절대 조회하지 않습니다.
+    const { data, error } = await supabase
+      .from("school_community_searchable_profiles")
+      .select("id,nickname")
+      .ilike("nickname", `%${query}%`)
+      .neq("id", currentUser?.id || "")
+      .limit(10);
+
+    if (error) return toast(`검색 실패: ${error.message}`);
+
+    resultsBox.hidden = false;
+    resultsBox.innerHTML = data.length ? data.map((profile) => `
+      <button class="dm-search-result-row" data-user-id="${profile.id}" data-nickname="${escapeHtml(profile.nickname)}" type="button">
+        <span>${escapeHtml(profile.nickname)}</span>
+        <span class="dm-search-start">대화 시작 →</span>
+      </button>
+    `).join("") : `<div class="dm-search-empty">일치하는 닉네임이 없습니다.</div>`;
+  }, 300);
 });
 
-$("#dm-modal-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (!currentUser || !currentProfile) return toast("인증 정보가 비어있습니다.");
-  const text = $("#dm-modal-message").value.trim();
-  if (!text || !activeTargetDm) return;
+document.addEventListener("click", (event) => {
+  if (!event.target.closest("#dm-search-input") && !event.target.closest("#dm-search-results")) {
+    const resultsBox = $("#dm-search-results");
+    if (resultsBox) { resultsBox.hidden = true; }
+  }
+});
 
-  const { error } = await supabase.from("school_community_dms").insert({
+async function loadChatMessages() {
+  if (!activeConversationId || !activeChatPartner) return showPage("dms");
+  $("#chat-partner-name").textContent = activeChatPartner.nickname;
+
+  const messages = await fetchChatMessages();
+  renderChatMessages(messages);
+  await markMessagesRead(messages);
+  subscribeToChat();
+}
+
+async function fetchChatMessages() {
+  const { data, error } = await supabase
+    .from("school_community_messages")
+    .select("*")
+    .eq("conversation_id", activeConversationId)
+    .order("created_at", { ascending: true });
+  if (error) { toast(`메시지를 불러오지 못했습니다: ${error.message}`); return []; }
+  return data || [];
+}
+
+function renderChatMessages(messages) {
+  const box = $("#chat-messages");
+  if (!box) return;
+
+  let lastDateLabel = "";
+  box.innerHTML = messages.length ? messages.map((msg) => {
+    const isMine = msg.sender_id === currentUser.id;
+    const dateLabel = new Date(msg.created_at).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
+    let dateDivider = "";
+    if (dateLabel !== lastDateLabel) {
+      dateDivider = `<div class="chat-date-divider"><span>${dateLabel}</span></div>`;
+      lastDateLabel = dateLabel;
+    }
+    const timeLabel = new Date(msg.created_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+    return `
+      ${dateDivider}
+      <div class="chat-bubble-row ${isMine ? "mine" : "theirs"}">
+        <div class="chat-bubble">${escapeHtml(msg.content)}</div>
+        <span class="chat-bubble-time">${timeLabel}</span>
+      </div>
+    `;
+  }).join("") : `<div class="chat-empty">첫 메시지를 보내보세요.</div>`;
+
+  box.scrollTop = box.scrollHeight;
+}
+
+async function markMessagesRead(messages) {
+  const unreadIds = messages
+    .filter((msg) => msg.sender_id !== currentUser.id && !msg.is_read)
+    .map((msg) => msg.id);
+  if (!unreadIds.length) return;
+  await supabase.from("school_community_messages").update({ is_read: true }).in("id", unreadIds);
+}
+
+function subscribeToChat() {
+  unsubscribeFromChat();
+  chatRealtimeChannel = supabase
+    .channel(`chat-${activeConversationId}`)
+    .on("postgres_changes", {
+      event: "INSERT",
+      schema: "public",
+      table: "school_community_messages",
+      filter: `conversation_id=eq.${activeConversationId}`
+    }, async (payload) => {
+      const messages = await fetchChatMessages();
+      renderChatMessages(messages);
+      if (payload.new.sender_id !== currentUser.id) {
+        await markMessagesRead(messages);
+      }
+    })
+    .subscribe();
+}
+
+function unsubscribeFromChat() {
+  if (chatRealtimeChannel) {
+    supabase.removeChannel(chatRealtimeChannel);
+    chatRealtimeChannel = null;
+  }
+}
+
+function autoResizeChatInput() {
+  const el = $("#chat-input");
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = Math.min(el.scrollHeight, 120) + "px";
+}
+
+$("#chat-input").addEventListener("input", autoResizeChatInput);
+
+$("#chat-input").addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    $("#chat-form").requestSubmit();
+  }
+});
+
+$("#chat-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!currentUser || !currentProfile || !activeConversationId) return;
+  const input = $("#chat-input");
+  const content = input.value.trim();
+  if (!content) return;
+
+  input.value = "";
+  autoResizeChatInput();
+
+  const { error } = await supabase.from("school_community_messages").insert({
+    conversation_id: activeConversationId,
     sender_id: currentUser.id,
     sender_nickname: currentProfile.nickname,
-    receiver_id: activeTargetDm.id,
-    receiver_nickname: activeTargetDm.nickname,
-    message: text
+    content
   });
 
-  if (error) return toast(`쪽지 발송 실패: ${error.message}`);
-  
-  toast("쪽지가 성공적으로 발송되었습니다.");
-  $("#dm-modal").style.display = "none";
-  document.body.style.overflow = "";
+  if (error) toast(`메시지 전송 실패: ${error.message}`);
 });
-
-async function loadDms() {
-  if (!currentUser) return;
-  const { data: dms, error } = await supabase
-    .from("school_community_dms")
-    .select("*")
-    .eq("receiver_id", currentUser.id)
-    .order("created_at", { ascending: false });
-
-  if (error) return toast(`쪽지 목록 로드 실패: ${error.message}`);
-
-  $("#dm-list").innerHTML = dms.length ? dms.map((dm) => `
-    <div class="dm-card-item">
-      <div class="dm-card-header">
-        <span class="dm-sender">보낸사람: <b>${escapeHtml(dm.sender_nickname)}</b></span>
-        <span class="dm-time">${time(dm.created_at)}</span>
-      </div>
-      <div class="dm-card-body">${escapeHtml(dm.message)}</div>
-      <div class="dm-card-actions">
-        <button type="button" class="primary reply-dm-btn" data-sender-id="${dm.sender_id}" data-sender-nickname="${escapeHtml(dm.sender_nickname)}">↩ 답장하기</button>
-      </div>
-    </div>
-  `).join("") : `<div class="post-row" style="text-align:center; color:var(--muted);">받은 쪽지가 없습니다.</div>`;
-
-  document.querySelectorAll(".reply-dm-btn").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      openDmModal(e.target.dataset.senderId, e.target.dataset.senderNickname);
-    });
-  });
-}
 
 $("#signup-form").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -309,7 +460,24 @@ document.addEventListener("click", (event) => {
   if (postRow) { 
     selectedPostId = postRow.dataset.postId; 
     showPage("detail"); 
+    return;
   } 
+
+  const conversationRow = event.target.closest(".conversation-row");
+  if (conversationRow) {
+    activeConversationId = conversationRow.dataset.conversationId;
+    activeChatPartner = {
+      id: conversationRow.dataset.partnerId,
+      nickname: conversationRow.dataset.partnerNickname
+    };
+    showPage("chat");
+    return;
+  }
+
+  const searchResultRow = event.target.closest(".dm-search-result-row");
+  if (searchResultRow) {
+    startConversationAndOpen(searchResultRow.dataset.userId, searchResultRow.dataset.nickname);
+  }
 });
 
 document.addEventListener("keydown", (event) => { 
