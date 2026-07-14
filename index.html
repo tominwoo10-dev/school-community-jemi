@@ -142,14 +142,55 @@
     </section>
 
     <section class="page" id="page-dms">
-      <div class="title-row">
-        <div>
-          <h1>📬 받은 쪽지함</h1>
-          <p>작성하신 글을 보고 다른 학우들이 보낸 익명 쪽지함입니다.</p>
-        </div>
-      </div>
-      <div id="dm-list"></div>
-    </section>
+  <div class="title-row">
+    <div>
+      <h1>📬 쪽지함</h1>
+      <p>닉네임 검색으로 다른 학우와 대화를 시작하세요.</p>
+    </div>
+  </div>
+
+  <!-- 닉네임 검색 -->
+  <div class="dm-search-box">
+    <input 
+      id="dm-search-input" 
+      type="text" 
+      placeholder="닉네임 검색"
+    >
+
+    <div id="dm-search-results" hidden></div>
+  </div>
+
+
+  <!-- 기존 대화 목록 -->
+  <div id="dm-conversation-list"></div>
+
+</section>
+
+
+<section class="page" id="page-chat">
+
+  <div class="chat-header">
+    <h2 id="chat-partner-name"></h2>
+  </div>
+
+  <div id="chat-messages"></div>
+
+  <form id="chat-form">
+
+    <textarea 
+      id="chat-input"
+      placeholder="메시지를 입력하세요"
+    ></textarea>
+
+    <button type="submit">
+      전송
+    </button>
+
+  </form>
+
+</section>
+
+
   </main>
 
   <div id="dm-modal" class="modal-overlay" style="display: none;">
