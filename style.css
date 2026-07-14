@@ -1,100 +1,165 @@
+/* ==========================================================================
+   1. VARIABLES & RESET (기본 설정 및 변수)
+   ========================================================================== */
 :root {
-  --navy: #172238;
-  --blue: #356cf5;
-  --green: #36976a;
-  --line: #e4e8f0;
-  --muted: #758096;
-  --red: #d85f61;
+  --navy: #1e293b;         /* 메인 텍스트 / 깊은 그레이 */
+  --blue: #2563eb;         /* 포인트 블루 */
+  --green: #15803d;        /* 배추 포인트 그린 (🥬) */
+  --green-bg: #f0fdf4;     /* 배추 배경 연그린 */
+  --bg-light: #f8fafc;     /* 메인 배경색 */
+  --line: #e2e8f0;         /* 경계선 */
+  --muted: #64748b;        /* 보조 텍스트 */
+  --red: #e11d48;          /* 경고 / 삭제 */
+  --white: #ffffff;
 }
 
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  margin: 0;
-  background: #f7f8fc;
-  color: #20283a;
-  font: 15px/1.55 system-ui, -apple-system, "Noto Sans KR", sans-serif;
+  background: var(--bg-light);
+  color: var(--navy);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans KR", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* ==========================================================================
+   2. COMMON ELEMENTS (공통 요소 및 폼 컴포넌트)
+   ========================================================================== */
 button, input, textarea, select {
-  font: inherit;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--navy);
 }
 
 button {
-  border: 0;
-  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  border-radius: 4px;
+  padding: 8px 12px;
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  font-weight: 500;
+}
+
+button:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
 input, textarea, select {
   width: 100%;
-  padding: 11px 12px;
-  border: 1px solid #dce2ed;
-  border-radius: 9px;
-  background: #fff;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--white);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--blue);
 }
 
 textarea {
-  height: 165px;
+  height: 150px;
   resize: vertical;
 }
 
+/* 버튼 컬러 분기 */
+.primary {
+  background: var(--blue);
+  color: var(--white);
+  border: 1px solid var(--blue);
+  font-weight: 600;
+}
+
+.primary:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.primary.large {
+  padding: 12px 24px;
+  font-size: 15px;
+  margin-top: 12px;
+}
+
+.text-button {
+  background: transparent !important;
+  border: none !important;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.text-button:hover {
+  color: var(--blue);
+  text-decoration: underline;
+}
+
+/* ==========================================================================
+   3. LAYOUT & HEADER (전체 레이아웃 및 헤더)
+   ========================================================================== */
 .header {
-  height: 68px;
-  background: #fff;
-  border-bottom: 1px solid var(--line);
+  height: 56px;
+  background: var(--white);
+  border-bottom: 2px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 max(20px, calc((100% - 1040px) / 2));
+  padding: 0 16px;
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: 100;
 }
 
 .brand {
   background: transparent;
-  font-size: 19px;
-  font-weight: 850;
+  border: none;
+  font-size: 17px;
+  font-weight: 800;
   color: var(--navy);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.brand:hover {
+  background: transparent;
 }
 
 nav {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
 
-nav button, .text-button {
-  background: transparent;
-  padding: 9px;
-  color: #516078;
-  font-weight: 700;
+nav button {
+  font-size: 13px;
+  padding: 6px 10px;
 }
 
-.primary {
-  background: var(--blue);
-  color: #fff;
-  padding: 11px 18px;
-  font-weight: 700;
-}
-
-.primary.large {
-  padding: 14px 28px;
-  font-size: 16px;
-  border-radius: 12px;
-  margin-top: 12px;
+#current-user {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-right: 6px;
 }
 
 .container {
-  max-width: 640px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 24px 16px;
-  min-height: calc(100vh - 130px);
+  padding: 20px 16px;
+  min-height: calc(100vh - 120px);
 }
 
+/* 페이지 제어 */
 .page {
   display: none;
 }
@@ -103,10 +168,14 @@ nav button, .text-button {
   display: block;
 }
 
+/* ==========================================================================
+   4. HOME & INTRO (메인 홈 및 안내)
+   ========================================================================== */
 .hero {
-  background: linear-gradient(135deg, #eef3ff, #f4f7ff);
-  padding: 32px;
-  border-radius: 24px;
+  background: var(--white);
+  padding: 30px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -114,51 +183,54 @@ nav button, .text-button {
 }
 
 .hero h1 {
-  font-size: 28px;
-  margin: 8px 0;
+  font-size: 24px;
+  font-weight: 800;
+  margin: 6px 0 12px;
   line-height: 1.3;
   color: var(--navy);
 }
 
+.hero span {
+  font-size: 12px;
+  color: var(--blue);
+  font-weight: 700;
+}
+
 .hero p {
-  color: #4d5970;
-  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 13.5px;
+  margin-bottom: 16px;
 }
 
 .hero b {
-  font-size: 72px;
-  line-height: 1;
+  font-size: 64px;
   user-select: none;
 }
 
-@media(max-width: 480px) {
-  .hero {
-    flex-direction: column-reverse;
-    text-align: center;
-    gap: 16px;
-  }
-  .hero b {
-    font-size: 60px;
-  }
-}
-
 .notice {
-  background: #fff;
-  padding: 16px 20px;
-  border-radius: 14px;
+  background: #f1f5f9;
+  padding: 14px 18px;
+  border-radius: 4px;
   border: 1px solid var(--line);
-  color: #4d5970;
-  font-size: 14px;
+  color: var(--navy);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
+.notice strong {
+  color: var(--blue);
+}
+
+/* ==========================================================================
+   5. ACCOUNTS & FORMS (로그인 및 회원가입)
+   ========================================================================== */
 .form-card {
-  background: #fff;
-  padding: 28px;
-  border-radius: 20px;
+  background: var(--white);
+  padding: 24px;
+  border-radius: 6px;
   border: 1px solid var(--line);
-  box-shadow: 0 4px 16px #17223805;
   margin: 20px auto 0;
-  max-width: 420px;
+  max-width: 440px;
 }
 
 .form-card.wide {
@@ -166,115 +238,121 @@ nav button, .text-button {
 }
 
 .form-card h1 {
-  font-size: 22px;
-  margin: 0 0 6px;
-  color: var(--navy);
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 6px;
 }
 
 .form-card p {
   color: var(--muted);
-  margin: 0 0 24px;
-  font-size: 14px;
+  font-size: 13px;
+  margin-bottom: 20px;
 }
 
 .form-card label {
   display: block;
-  margin-top: 16px;
+  margin-top: 14px;
   font-weight: 700;
-  color: #333e54;
-  font-size: 14px;
+  font-size: 13px;
+  color: var(--navy);
 }
 
 .form-card input, .form-card textarea, .form-card select {
   margin-top: 6px;
 }
 
-.form-card button.primary {
-  width: 100%;
-  margin-top: 24px;
-  padding: 13px;
+.form-row-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 6px;
 }
 
-.form-card .text-button {
-  width: 100%;
-  text-align: center;
-  margin-top: 12px;
-  font-size: 14px;
+.form-row-grid label {
+  margin-top: 0 !important;
 }
 
+/* ==========================================================================
+   6. BOARDS & POST LISTS (이야기 게시판 목록)
+   ========================================================================== */
 .title-row {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 20px;
+  align-items: center;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
 }
 
 .title-row h1 {
-  font-size: 24px;
-  margin: 0 0 4px;
-  color: var(--navy);
+  font-size: 20px;
+  font-weight: 700;
 }
 
 .title-row p {
-  margin: 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
+  margin-top: 2px;
 }
 
+/* 탭 스타일링 */
 .tabs {
   display: flex;
-  gap: 6px;
-  border-bottom: 2px solid var(--line);
-  padding-bottom: 12px;
-  margin-bottom: 16px;
+  gap: 2px;
+  background: #e2e8f0;
+  padding: 3px;
+  border-radius: 4px;
+  margin-bottom: 14px;
 }
 
 .tabs button {
+  flex: 1;
   background: transparent;
+  border: none;
   color: var(--muted);
-  padding: 8px 16px;
-  font-weight: 700;
-  font-size: 15px;
-  border-radius: 7px;
+  padding: 6px;
+  font-weight: 600;
+  font-size: 13.5px;
+  border-radius: 3px;
 }
 
 .tabs button.active {
-  background: #fff;
+  background: var(--white);
   color: var(--blue);
-  box-shadow: 0 2px 8px #1722380a;
-  border: 1px solid var(--line);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
+/* 게시판 스타일 포스트 행 */
 .post-row {
-  background: #fff;
-  padding: 20px;
-  border-radius: 16px;
+  background: var(--white);
+  padding: 16px;
+  border-radius: 4px;
   border: 1px solid var(--line);
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   text-align: left;
   width: 100%;
   display: block;
-  box-shadow: 0 2px 6px #00000002;
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s ease;
 }
 
-.post-row:active {
-  transform: scale(0.99);
-  box-shadow: none;
+.post-row:hover {
+  border-color: #cbd5e1;
 }
 
 .badge {
-  background: #eef2ff;
-  color: var(--blue);
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 800;
+  background: #f1f5f9;
+  color: var(--muted);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid var(--line);
 }
 
 .post-row h2 {
-  font-size: 17px;
-  margin: 10px 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  margin: 8px 0 4px;
   color: var(--navy);
   white-space: nowrap;
   overflow: hidden;
@@ -282,209 +360,436 @@ nav button, .text-button {
 }
 
 .excerpt {
-  margin: 0 0 14px;
-  color: #4d5970;
-  font-size: 14px;
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 13px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.5;
+  word-break: break-all;
 }
 
 .bottom {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted);
+  border-top: 1px dashed #f1f5f9;
+  padding-top: 10px;
 }
 
+/* ==========================================================================
+   7. DETAIL PAGE & COMMENTS (상세보기 및 댓글)
+   ========================================================================== */
 .detail-card {
-  background: #fff;
-  padding: 28px;
-  border-radius: 20px;
+  background: var(--white);
+  padding: 24px;
+  border-radius: 4px;
   border: 1px solid var(--line);
   margin-top: 12px;
 }
 
 .detail-card h1 {
-  font-size: 22px;
-  margin: 12px 0 8px;
-  color: var(--navy);
-  line-height: 1.35;
+  font-size: 18px;
+  font-weight: 700;
+  margin: 10px 0 6px;
+  line-height: 1.4;
+  word-break: break-all;
 }
 
 .meta {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
   border-bottom: 1px solid var(--line);
-  padding-bottom: 14px;
-  margin-bottom: 18px;
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .detail-content {
-  font-size: 15.5px;
-  line-height: 1.65;
-  color: #2c3547;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--navy);
   white-space: pre-wrap;
   word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .actions {
   display: flex;
   justify-content: space-between;
-  margin-top: 28px;
+  margin-top: 24px;
   border-top: 1px solid var(--line);
-  padding-top: 16px;
+  padding-top: 14px;
 }
 
-.actions button {
-  padding: 10px 16px;
-  font-weight: 700;
-  font-size: 14px;
-}
-
+/* 배추 추천 버튼 최적화 */
 .cabbage {
-  background: #e8f7f0;
+  background: var(--green-bg);
   color: var(--green);
+  border: 1px solid var(--green);
+  font-weight: 700;
+  border-radius: 4px;
+}
+
+.cabbage:hover {
+  background: #dcfce7;
 }
 
 .danger {
-  background: #fdf2f2;
+  background: #fff1f2;
   color: var(--red);
-  font-weight: 800;
+  border: 1px solid var(--red);
+  font-weight: 700;
 }
 
+.danger:hover {
+  background: #ffe4e6;
+}
+
+/* 댓글 */
 .comments {
-  margin-top: 24px;
+  margin-top: 20px;
 }
 
 .comments h2 {
-  font-size: 18px;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+#comment-list {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--white);
+  overflow: hidden;
 }
 
 .comment {
-  background: #fff;
-  padding: 16px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--line);
 }
 
+.comment:last-child {
+  border-bottom: none;
+}
+
+.comment strong {
+  font-size: 13px;
+  color: var(--navy);
+}
+
+.comment .meta {
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: inline;
+  font-size: 11px;
+}
+
 .comment p {
-  margin: 8px 0 0;
-  color: #4d5970;
+  margin-top: 6px;
+  font-size: 13.5px;
+  color: var(--navy);
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .comment-form {
   display: flex;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .comment-form button {
   background: var(--navy);
-  color: #fff;
-  padding: 0 15px;
-  font-weight: 800;
+  color: var(--white);
+  border-color: var(--navy);
+  font-weight: 700;
+  padding: 0 16px;
 }
 
-.admin-panel {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  width: min(360px, calc(100% - 36px));
-  background: #fff;
-  border: 1px solid #d8deeb;
-  border-radius: 17px;
-  box-shadow: 0 18px 50px #17223842;
-  padding: 18px;
-  z-index: 9;
+.comment-form button:hover {
+  background: #0f172a;
 }
 
-.admin-head {
+/* ==========================================================================
+   8. DM & CHAT SYSTEM (쪽지 및 대화방)
+   ========================================================================== */
+/* 검색 상자 */
+.dm-search-box {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+#dm-search-input {
+  border-radius: 4px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+}
+
+#dm-search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  z-index: 10;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.dm-search-result-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.admin-head h2 {
-  margin: 0;
-}
-
-.admin-head button {
-  font-size: 25px;
-}
-
-.admin-panel form {
-  border-top: 1px solid var(--line);
-  padding-top: 12px;
-  margin-top: 12px;
-}
-
-.admin-panel h3 {
-  font-size: 14px;
-  margin: 0 0 8px;
-}
-
-.admin-panel input {
-  margin: 3px 0;
-}
-
-.admin-panel form button {
   width: 100%;
-  margin-top: 5px;
-  padding: 8px;
-  background: #eef2ff;
-  color: #4261c5;
+  padding: 10px 14px;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: var(--white);
+  border-radius: 0;
+  text-align: left;
 }
 
-.toast {
-  position: fixed;
-  bottom: 32px;
-  left: 50%;
-  transform: translateX(-50%) translateY(20px);
-  background: rgba(23, 34, 56, 0.95);
-  color: #fff;
-  padding: 12px 24px;
-  border-radius: 30px;
-  font-size: 14px;
-  font-weight: 700;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s, transform 0.25s;
-  z-index: 99;
-  box-shadow: 0 8px 24px #17223833;
-  white-space: nowrap;
+.dm-search-result-row:last-child {
+  border-bottom: none;
 }
 
-.toast.show {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateX(-50%) translateY(0);
+.dm-search-result-row:hover {
+  background: #f8fafc;
 }
 
-footer {
+.dm-search-start {
+  font-size: 12px;
+  color: var(--blue);
+  font-weight: 600;
+}
+
+.dm-search-empty {
+  padding: 12px;
   text-align: center;
-  padding: 32px;
   color: var(--muted);
   font-size: 13px;
 }
 
-.form-row-grid {
+/* 대화 목록 */
+#dm-conversation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.conversation-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.2fr;
-  gap: 10px;
-  margin-top: 4px;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas: 
+    "name preview time"
+    "name preview badge";
+  align-items: center;
+  gap: 4px 12px;
+  width: 100%;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 14px;
+  text-align: left;
 }
 
-.form-row-grid label {
-  margin-top: 0 !important;
+.conversation-row:hover {
+  border-color: #cbd5e1;
 }
 
+.conversation-name {
+  grid-area: name;
+  font-weight: 700;
+  color: var(--navy);
+  font-size: 14px;
+  min-width: 80px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conversation-preview {
+  grid-area: preview;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conversation-time {
+  grid-area: time;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+}
+
+.unread-badge {
+  grid-area: badge;
+  justify-self: end;
+  background: var(--red);
+  color: var(--white);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  line-height: 1;
+}
+
+/* 채팅창 메인 영역 */
+#page-chat {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+  min-height: 450px;
+  overflow: hidden;
+}
+
+.chat-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--white);
+}
+
+#chat-partner-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+#chat-messages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 날짜 구분선 */
+.chat-date-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px 0;
+}
+
+.chat-date-divider span {
+  background: #e2e8f0;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+/* 말풍선 배치 */
+.chat-bubble-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 80%;
+}
+
+.chat-bubble-row.mine {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.chat-bubble-row.theirs {
+  align-self: flex-start;
+}
+
+.chat-bubble {
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+.mine .chat-bubble {
+  background: var(--blue);
+  color: var(--white);
+}
+
+.theirs .chat-bubble {
+  background: var(--white);
+  border: 1px solid var(--line);
+  color: var(--navy);
+}
+
+.chat-bubble-time {
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* 입력 전송 영역 */
+#chat-form {
+  padding: 12px;
+  border-top: 1px solid var(--line);
+  background: var(--white);
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+#chat-input {
+  flex: 1;
+  height: 40px;
+  min-height: 40px;
+  max-height: 120px;
+  resize: none;
+  padding: 8px 12px;
+}
+
+#chat-form button {
+  background: var(--blue);
+  color: var(--white);
+  border-color: var(--blue);
+  height: 40px;
+  font-weight: 700;
+  padding: 0 16px;
+}
+
+#chat-form button:hover {
+  background: #1d4ed8;
+}
+
+.chat-empty {
+  text-align: center;
+  color: var(--muted);
+  margin-top: auto;
+  margin-bottom: auto;
+  font-size: 13px;
+}
+
+/* ==========================================================================
+   9. MODALS & UTILITIES (모달창 및 유틸리티)
+   ========================================================================== */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(23, 34, 56, 0.6);
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -494,82 +799,175 @@ footer {
 
 .modal-content {
   width: 100%;
-  max-width: 440px;
+  max-width: 400px;
   margin: 0;
-  box-shadow: 0 12px 36px rgba(23, 34, 56, 0.25);
-  animation: dmModalFade 0.2s ease-out;
+  background: var(--white);
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  animation: modalFadeIn 0.15s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 .modal-buttons {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 20px;
+  gap: 6px;
+  margin-top: 16px;
 }
 
-@keyframes dmModalFade {
-  from { transform: translateY(10px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+/* 토스트 메시지 */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: var(--navy);
+  color: var(--white);
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-.dm-card-item {
-  background: #fff;
-  padding: 18px;
-  border-radius: 16px;
-  border: 1px solid var(--line);
-  margin-bottom: 12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.01);
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
-.dm-card-header {
+/* 관리자 패널 */
+.admin-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: 320px;
+  background: var(--white);
+  border: 2px solid var(--navy);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  padding: 16px;
+  z-index: 999;
+}
+
+.admin-head {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  align-items: center;
   margin-bottom: 8px;
-  border-bottom: 1px dashed var(--line);
-  padding-bottom: 6px;
 }
 
-.dm-sender {
+.admin-head h2 {
+  font-size: 14px;
+  font-weight: 800;
   color: var(--navy);
 }
 
-.dm-time {
+.admin-head button {
+  font-size: 18px;
+  padding: 2px 6px;
+  border: none;
+  background: transparent;
+}
+
+.admin-panel .hint {
+  font-size: 11px;
   color: var(--muted);
+  margin-bottom: 12px;
 }
 
-.dm-card-body {
-  font-size: 14.5px;
-  color: #333e54;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.dm-card-actions {
-  display: flex;
-  justify-content: flex-end;
+.admin-panel form {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
   margin-top: 10px;
 }
 
-.dm-card-actions button {
+.admin-panel h3 {
   font-size: 12px;
-  padding: 6px 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
 }
 
-.detail-content, .dm-card-body, .excerpt, .post-row h2 {
-  overflow-wrap: break-word;
-  word-wrap: break-word;
-  word-break: break-all;
+.admin-panel input {
+  font-size: 12px;
+  padding: 6px 8px;
 }
 
-@media (max-width: 375px) {
+.admin-panel form button {
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px;
+  background: #f1f5f9;
+  border: 1px solid var(--line);
+  color: var(--navy);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-panel form button:hover {
+  background: #cbd5e1;
+}
+
+footer {
+  text-align: center;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 11px;
+  border-top: 1px solid var(--line);
+  background: var(--white);
+  margin-top: 24px;
+}
+
+/* ==========================================================================
+   10. MOBILE RESPONSIVE (반응형 최적화)
+   ========================================================================== */
+@media (max-width: 640px) {
+  .container {
+    padding: 12px;
+  }
+  
+  .hero {
+    padding: 20px;
+    flex-direction: column-reverse;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .hero b {
+    font-size: 48px;
+  }
+
+  .hero h1 {
+    font-size: 20px;
+  }
+
   .form-row-grid {
     grid-template-columns: 1fr;
-    gap: 8px;
+    gap: 6px;
   }
-  .dm-card-header {
-    flex-direction: column;
-    gap: 4px;
+
+  .conversation-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: 
+      "name time"
+      "preview badge";
+    gap: 6px 4px;
+    padding: 12px;
+  }
+
+  .conversation-name {
+    min-width: unset;
+  }
+
+  #page-chat {
+    height: calc(100vh - 100px);
   }
 }
