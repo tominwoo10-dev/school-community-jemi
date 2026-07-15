@@ -10,6 +10,7 @@
   <header class="header">
     <button class="brand" data-page="home" type="button">🥬 마음우체통</button>
     <nav id="guest-nav">
+      <button data-page="cabbage-board" type="button">🥬 배추게시판</button>
       <button data-page="login" type="button">로그인</button>
       <button class="primary" data-page="signup" type="button">회원가입</button>
       <button id="theme-toggle" type="button" aria-label="다크모드 전환">🌙</button>
@@ -17,6 +18,7 @@
     <nav id="member-nav" style="display: none;">
       <span id="current-user"></span>
       <button data-page="boards" type="button">게시판</button>
+      <button data-page="cabbage-board" type="button">🥬 배추게시판</button>
       <button data-page="dms" id="dm-nav-button" type="button">📬 쪽지함</button>
       <button data-page="write" type="button">글쓰기</button>
       <button id="logout-button" type="button">로그아웃</button>
@@ -50,7 +52,7 @@
         <h1>학생 로그인</h1>
         <p>학번과 패스워드를 입력하여 접속하세요.</p>
         <label for="login-student-id">학번</label>
-        <input id="login-student-id" required placeholder="예: 10515" autocomplete="username">
+        <input id="login-student-id" required placeholder="00000" autocomplete="username">
         <label for="login-password">비밀번호</label>
         <input id="login-password" type="password" required autocomplete="current-password">
         <button type="submit" class="primary">로그인</button>
@@ -189,6 +191,21 @@
           <button type="submit">등록</button>
         </form>
       </section>
+    </section>
+
+    <section class="page" id="page-cabbage-board">
+      <div class="title-row">
+        <div>
+          <h1>🥬 배추 게시판</h1>
+          <p>배추를 가장 많이 받은 인기 게시글을 모아봤어요.</p>
+        </div>
+      </div>
+      <div class="tabs" id="cabbage-period-tabs">
+        <button class="active" data-period="daily" type="button">☀️ 일간 배추</button>
+        <button data-period="weekly" type="button">📅 주간 배추</button>
+        <button data-period="monthly" type="button">🗓 월간 배추</button>
+      </div>
+      <div id="cabbage-rank-list"></div>
     </section>
 
     <section class="page" id="page-dms">

@@ -1,4 +1,39 @@
 /* ==========================================================================
+   0. 다크모드 변수 정의 (라이트/다크 공통 CSS 변수)
+   ========================================================================== */
+:root {
+  --bg: #f9f9fb;
+  --card-bg: #ffffff;
+  --text: #333333;
+  --muted: #666666;
+  --border: #e3e3e3;
+  --border-soft: #f2f2f4;
+  --header-bg: #ffffff;
+  --input-bg: #ffffff;
+  --primary: #22c55e;
+  --primary-text: #ffffff;
+  --hover-bg: #f8f9fa;
+  --table-head-bg: #f3f5f7;
+  --shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+[data-theme="dark"] {
+  --bg: #15171c;
+  --card-bg: #1e2128;
+  --text: #e7e9ee;
+  --muted: #9a9fab;
+  --border: #2c303a;
+  --border-soft: #262a33;
+  --header-bg: #1a1c22;
+  --input-bg: #23262e;
+  --primary: #2fd66b;
+  --primary-text: #0c1310;
+  --hover-bg: #262a33;
+  --table-head-bg: #1c1f26;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+/* ==========================================================================
    1. 글로벌 기본 스타일 및 레이아웃 (기본 구조 유지)
    ========================================================================== */
 * {
@@ -9,9 +44,10 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  background-color: #f9f9fb;
-  color: #333333;
+  background-color: var(--bg);
+  color: var(--text);
   line-height: 1.5;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .container {
@@ -26,8 +62,9 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background-color: #ffffff;
-  border-bottom: 1px solid #e3e3e3;
+  background-color: var(--header-bg);
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 .header .brand {
   font-size: 18px;
@@ -35,19 +72,38 @@ body {
   background: none;
   border: none;
   cursor: pointer;
+  color: var(--text);
 }
 .header nav button {
   margin-left: 8px;
   padding: 6px 12px;
   border-radius: 4px;
-  border: 1px solid #ccc;
-  background: #fff;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text);
   cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+.header nav button:hover {
+  background: var(--hover-bg);
 }
 .header nav button.primary {
-  background: #22c55e;
-  color: #fff;
-  border-color: #22c55e;
+  background: var(--primary);
+  color: var(--primary-text);
+  border-color: var(--primary);
+}
+.header nav button.has-unread {
+  position: relative;
+}
+.header nav button.has-unread::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
 }
 
 /* 페이지 전환 기본 구조 */
@@ -60,12 +116,14 @@ body {
 
 /* 기본 폼 카드 및 버튼 (로그인/회원가입/글쓰기용 유지) */
 .form-card {
-  background: #ffffff;
+  background: var(--card-bg);
   padding: 24px;
   border-radius: 8px;
-  border: 1px solid #e3e3e3;
+  border: 1px solid var(--border);
   max-width: 480px;
   margin: 40px auto;
+  box-shadow: var(--shadow);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 .form-card.wide {
   max-width: 760px;
@@ -73,10 +131,11 @@ body {
 .form-card h1 {
   margin-bottom: 8px;
   font-size: 20px;
+  color: var(--text);
 }
 .form-card p {
   font-size: 14px;
-  color: #666;
+  color: var(--muted);
   margin-bottom: 16px;
 }
 .form-card label {
@@ -84,6 +143,7 @@ body {
   margin-top: 12px;
   font-weight: 600;
   font-size: 14px;
+  color: var(--text);
 }
 .form-card input,
 .form-card select,
@@ -91,8 +151,11 @@ body {
   width: 100%;
   padding: 10px;
   margin-top: 4px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   border-radius: 4px;
+  background: var(--input-bg);
+  color: var(--text);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 .form-card textarea {
   height: 200px;
@@ -102,12 +165,19 @@ body {
   width: 100%;
   margin-top: 20px;
   padding: 12px;
-  background: #22c55e;
-  color: white;
+  background: var(--primary);
+  color: var(--primary-text);
   border: none;
   border-radius: 4px;
   font-weight: bold;
   cursor: pointer;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+.form-card button[type="submit"]:hover {
+  filter: brightness(1.05);
+}
+.form-card button[type="submit"]:active {
+  transform: scale(0.98);
 }
 .form-row-grid {
   display: grid;
@@ -117,7 +187,7 @@ body {
 .text-button {
   background: none;
   border: none;
-  color: #666;
+  color: var(--muted);
   cursor: pointer;
   margin-top: 12px;
   font-size: 14px;
@@ -129,15 +199,23 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #fff;
+  background: var(--card-bg);
   padding: 40px;
   border-radius: 8px;
-  border: 1px solid #e3e3e3;
+  border: 1px solid var(--border);
   margin-bottom: 20px;
+  box-shadow: var(--shadow);
 }
 .hero h1 {
   font-size: 28px;
   margin: 8px 0;
+  color: var(--text);
+}
+.hero span {
+  color: var(--muted);
+}
+.hero p {
+  color: var(--muted);
 }
 .hero b {
   font-size: 48px;
@@ -148,6 +226,12 @@ body {
   border-radius: 8px;
   font-size: 14px;
   border: 1px solid #e0e7ff;
+  color: #333;
+}
+[data-theme="dark"] .notice {
+  background: #1c2240;
+  border-color: #2b3468;
+  color: #dfe3ff;
 }
 
 /* 역할 탭 */
@@ -160,13 +244,14 @@ body {
 }
 .role-tab-btn {
   padding: 10px 20px;
-  background: #eee;
-  border: 1px solid #ccc;
+  background: var(--hover-bg);
+  border: 1px solid var(--border);
   cursor: pointer;
+  color: var(--text);
 }
 .role-tab-btn.active {
-  background: #fff;
-  border-bottom: 1px solid #fff;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--card-bg);
   font-weight: bold;
 }
 
@@ -184,19 +269,24 @@ body {
 }
 .title-row h1 {
   font-size: 24px;
+  color: var(--text);
 }
 .title-row p {
   font-size: 14px;
-  color: #666;
+  color: var(--muted);
 }
 .title-row button.primary {
   padding: 10px 20px;
-  background: #22c55e;
-  color: white;
+  background: var(--primary);
+  color: var(--primary-text);
   border: none;
   border-radius: 6px;
   font-weight: bold;
   cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.title-row button.primary:hover {
+  filter: brightness(1.05);
 }
 
 .tabs {
@@ -206,16 +296,22 @@ body {
 }
 .tabs button {
   padding: 8px 16px;
-  background: #eee;
+  background: var(--hover-bg);
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
+  color: var(--text);
+  transition: background-color 0.15s ease;
 }
 .tabs button.active {
   background: #333;
   color: white;
   font-weight: bold;
+}
+[data-theme="dark"] .tabs button.active {
+  background: var(--primary);
+  color: var(--primary-text);
 }
 
 /* [헤더] 게시판 공통 상단 테이블 헤더 */
@@ -223,14 +319,14 @@ body {
   display: grid !important;
   grid-template-columns: 1fr 90px 70px 70px 70px 90px !important;
   align-items: center;
-  background-color: #f3f5f7;
-  border-top: 1px solid #dcdfe6;
-  border-bottom: 1px solid #dcdfe6;
+  background-color: var(--table-head-bg);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   height: 40px;
   padding: 0 12px;
   font-size: 13px;
   font-weight: bold;
-  color: #555555;
+  color: var(--muted);
   box-shadow: none !important;
   border-radius: 0 !important;
 }
@@ -239,8 +335,8 @@ body {
 #post-list {
   display: flex !important;
   flex-direction: column !important;
-  background-color: #ffffff;
-  border-bottom: 1px solid #dcdfe6;
+  background-color: var(--card-bg);
+  border-bottom: 1px solid var(--border);
   box-shadow: none !important;
   border-radius: 0 !important;
 }
@@ -251,10 +347,10 @@ body {
   appearance: none !important;
   -webkit-appearance: none !important;
   background: none !important;
-  background-color: #ffffff !important;
+  background-color: var(--card-bg) !important;
   outline: none !important;
   border: none !important;
-  border-bottom: 1px solid #f2f2f4 !important; /* 각 글 사이 1px border-bottom */
+  border-bottom: 1px solid var(--border-soft) !important; /* 각 글 사이 1px border-bottom */
   
   display: grid !important;
   grid-template-columns: 1fr 90px 70px 70px 70px 90px !important;
@@ -275,7 +371,7 @@ body {
 
 /* 마우스 Hover 시 배경색만 연하게 변경 */
 #post-list .post-row-line:hover {
-  background-color: #f8f9fa !important;
+  background-color: var(--hover-bg) !important;
 }
 
 /* 안전한 본문 숨김 방식 (상세페이지 타격 없이 목록 내부의 본문 엘리먼트만 가림) */
@@ -295,12 +391,12 @@ body {
   max-height: 48px !important;
   cursor: default !important;
   pointer-events: none !important; /* 클릭 불가 효과 강제 */
-  color: #999 !important;
-  background-color: #ffffff !important;
-  border-bottom: 1px solid #f2f2f4 !important;
+  color: var(--muted) !important;
+  background-color: var(--card-bg) !important;
+  border-bottom: 1px solid var(--border-soft) !important;
 }
 #post-list .post-row-line.empty:hover {
-  background-color: #ffffff !important; /* 빈 행은 hover 효과 무시 */
+  background-color: var(--card-bg) !important; /* 빈 행은 hover 효과 무시 */
 }
 
 /* 🟢 내부 Column 데이터 정렬 및 텍스트 제어 설정 */
@@ -312,7 +408,7 @@ body {
   align-items: center !important; /* 2. 배지 정렬용 수평 가운데 정렬 */
   text-align: left !important;
   font-size: 14px !important;
-  color: #2c3e50 !important;
+  color: var(--text) !important;
   padding-right: 10px;
   overflow: hidden !important;
   min-width: 0 !important; /* Flexbox 구조 내 말줄임 강제 활성화 */
@@ -331,7 +427,7 @@ body {
 /* 헤더 제목 스타일 매칭 */
 .post-table-head .col-title {
   font-weight: bold !important;
-  color: #555555 !important;
+  color: var(--muted) !important;
   display: block !important;
 }
 
@@ -373,7 +469,7 @@ body {
 .post-table-head .col-author {
   text-align: center !important;
   font-size: 13px !important;
-  color: #4a4a4a !important;
+  color: var(--text) !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
@@ -384,13 +480,13 @@ body {
 .post-table-head .col-stat {
   text-align: center !important;
   font-size: 13px !important;
-  color: #777777 !important;
+  color: var(--muted) !important;
 }
 
 /* 댓글수 숫자에 컬러 포인트 강조 */
 #post-list .post-row-line .col-stat:last-of-type {
   font-weight: 600;
-  color: #22c55e !important; 
+  color: var(--primary) !important; 
 }
 
 /* 4. 시간 영역 (가운데 정렬) */
@@ -398,25 +494,121 @@ body {
 .post-table-head .col-time {
   text-align: center !important;
   font-size: 12px !important;
-  color: #999999 !important;
+  color: var(--muted) !important;
   white-space: nowrap !important;
 }
 
 
 /* ==========================================================================
-   3. 게시판 이외의 기능별 UI (수정 없이 원본 스펙 완전 유지)
+   3. 게시판 이외의 기능별 UI
    ========================================================================== */
 
 /* 상세 페이지 (상세뷰 내부에서는 리스트 공용 스타일 영향 차단) */
 .detail-card {
-  background: #ffffff;
+  background: var(--card-bg);
   padding: 24px;
   border-radius: 8px;
-  border: 1px solid #e3e3e3;
+  border: 1px solid var(--border);
   margin-top: 16px;
+  box-shadow: var(--shadow);
 }
+.detail-card h1 {
+  color: var(--text);
+}
+.detail-card .meta {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 8px 0;
+}
+.detail-card .detail-content {
+  margin: 16px 0;
+  white-space: pre-wrap;
+  color: var(--text);
+  line-height: 1.7;
+}
+.detail-card .badge {
+  display: inline-block;
+  background: var(--table-head-bg);
+  color: var(--muted);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+.detail-card .actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.detail-card .action-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.detail-card button.cabbage {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--hover-bg);
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+.detail-card button.cabbage:hover {
+  background: var(--table-head-bg);
+}
+.detail-card button.cabbage.cabbage-pop {
+  animation: cabbagePop 0.45s ease;
+}
+@keyframes cabbagePop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.18) rotate(-4deg); }
+  60% { transform: scale(0.95) rotate(3deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+.detail-card button.report-btn,
+.detail-card button.notice-toggle-btn,
+.detail-card button.danger {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+}
+.detail-card button.danger {
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
 .comments {
   margin-top: 24px;
+}
+.comments h2 {
+  color: var(--text);
+  margin-bottom: 12px;
+}
+.comment {
+  background: var(--card-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+.comment strong {
+  color: var(--text);
+}
+.comment .meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+.comment p {
+  margin-top: 6px;
+  color: var(--text);
 }
 .comment-form {
   display: flex;
@@ -426,8 +618,10 @@ body {
 .comment-form input {
   flex: 1;
   padding: 10px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   border-radius: 4px;
+  background: var(--input-bg);
+  color: var(--text);
 }
 .comment-form button {
   padding: 10px 20px;
@@ -437,63 +631,360 @@ body {
   border-radius: 4px;
   cursor: pointer;
 }
+[data-theme="dark"] .comment-form button {
+  background: var(--primary);
+  color: var(--primary-text);
+}
 
-/* DM (쪽지함) 및 채팅 인터페이스 */
+/* ==========================================================================
+   3-1. 🥬 배추 게시판 / 랭킹 UI
+   ========================================================================== */
+.cabbage-rank-empty {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+#cabbage-rank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cabbage-rank-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: var(--shadow);
+  transition: transform 0.12s ease, background-color 0.12s ease;
+}
+.cabbage-rank-row:hover {
+  background: var(--hover-bg);
+  transform: translateY(-1px);
+}
+.cabbage-rank-row.rank-1 {
+  border-color: #f5c518;
+  background: linear-gradient(0deg, var(--card-bg), var(--card-bg)), linear-gradient(90deg, rgba(245,197,24,0.12), transparent);
+}
+.cabbage-rank-row.rank-2 {
+  border-color: #c0c6d1;
+}
+.cabbage-rank-row.rank-3 {
+  border-color: #d7a06b;
+}
+
+.cabbage-rank-medal {
+  font-size: 22px;
+  min-width: 40px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.cabbage-rank-row.rank-1 .cabbage-rank-medal,
+.cabbage-rank-row.rank-2 .cabbage-rank-medal,
+.cabbage-rank-row.rank-3 .cabbage-rank-medal {
+  font-size: 28px;
+}
+
+.cabbage-rank-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.cabbage-rank-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cabbage-rank-author {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.cabbage-rank-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.cabbage-rank-count {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+  white-space: nowrap;
+}
+.cabbage-rank-comments {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* DM (쪽지함) 및 채팅 인터페이스 - 인스타그램 DM 스타일 */
 .dm-search-box {
   position: relative;
   margin-bottom: 16px;
 }
+.dm-search-box input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--input-bg);
+  color: var(--text);
+}
 #dm-search-results {
   position: absolute;
-  background: white;
-  border: 1px solid #ccc;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
   width: 100%;
-  max-height: 200px;
+  max-height: 240px;
   overflow-y: auto;
   z-index: 10;
+  margin-top: 6px;
+  box-shadow: var(--shadow);
 }
+.dm-search-result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 12px 14px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-soft);
+  cursor: pointer;
+  color: var(--text);
+  font-size: 14px;
+}
+.dm-search-result-row:hover {
+  background: var(--hover-bg);
+}
+.dm-search-start {
+  font-size: 12px;
+  color: var(--primary);
+}
+.dm-search-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+#dm-conversation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.conversation-row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.12s ease;
+}
+.conversation-row:hover {
+  background: var(--hover-bg);
+}
+.conversation-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+}
+.conversation-preview {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+  max-width: 90%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.conversation-time {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.unread-badge {
+  position: absolute;
+  bottom: 14px;
+  right: 16px;
+  background: var(--primary);
+  color: var(--primary-text);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
 .chat-header {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
 }
+.chat-header h2 {
+  color: var(--text);
+  font-size: 17px;
+}
 .chat-back {
   font-size: 20px;
   background: none;
   border: none;
   cursor: pointer;
+  color: var(--text);
 }
+
 #chat-messages {
-  height: 400px;
-  border: 1px solid #ccc;
-  background: #fff;
+  height: 60vh;
+  max-height: 520px;
+  min-height: 320px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 12px;
   overflow-y: auto;
   padding: 16px;
   margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
+
+.chat-empty {
+  margin: auto;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.chat-date-divider {
+  display: flex;
+  justify-content: center;
+  margin: 14px 0 10px;
+}
+.chat-date-divider span {
+  background: var(--table-head-bg);
+  color: var(--muted);
+  font-size: 11px;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+/* 인스타그램 DM 스타일 말풍선 */
+.chat-bubble-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 78%;
+  margin: 3px 0;
+  position: relative;
+}
+.chat-bubble-row.theirs {
+  align-self: flex-start;
+  flex-direction: row;
+}
+.chat-bubble-row.mine {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.chat-bubble {
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
+  box-shadow: var(--shadow);
+}
+.chat-bubble-row.theirs .chat-bubble {
+  background: var(--card-bg);
+  color: var(--text);
+  border: 1px solid var(--border-soft);
+  border-radius: 18px 18px 18px 4px;
+}
+.chat-bubble-row.mine .chat-bubble {
+  background: var(--primary);
+  color: var(--primary-text);
+  border-radius: 18px 18px 4px 18px;
+}
+
+.chat-bubble-time {
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+  margin-bottom: 2px;
+}
+
+.chat-report-btn,
+.chat-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  align-self: center;
+}
+.chat-bubble-row:hover .chat-report-btn,
+.chat-bubble-row:hover .chat-delete-btn {
+  opacity: 0.7;
+}
+.chat-report-btn:hover,
+.chat-delete-btn:hover {
+  opacity: 1;
+}
+
 #chat-form {
   display: flex;
   gap: 8px;
+  align-items: flex-end;
 }
 #chat-input {
   flex: 1;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--input-bg);
+  color: var(--text);
   resize: none;
+  font-family: inherit;
+  max-height: 120px;
 }
 #chat-form button {
   padding: 0 20px;
-  background: #22c55e;
-  color: white;
+  height: 42px;
+  background: var(--primary);
+  color: var(--primary-text);
   border: none;
-  border-radius: 4px;
+  border-radius: 20px;
   cursor: pointer;
+  font-weight: 600;
 }
 
 /* 모달 오버레이 */
-/* 모달 오버레이: 기본은 숨김, hidden 속성으로만 표시/숨김 제어 */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -512,6 +1003,14 @@ body {
   display: flex;
 }
 
+.modal-content {
+  animation: modalIn 0.15s ease;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* 모든 요소 공통 hidden 처리 */
 [hidden] {
   display: none !important;
@@ -524,16 +1023,29 @@ body {
   top: 0;
   width: 360px;
   height: 100%;
-  background: #fff;
-  border-left: 1px solid #ccc;
+  background: var(--card-bg);
+  border-left: 1px solid var(--border);
   padding: 20px;
   z-index: 90;
   overflow-y: auto;
+  color: var(--text);
 }
 .admin-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+.admin-head button {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 18px;
+  cursor: pointer;
+}
+.admin-panel .hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
 }
 .admin-tabs {
   display: flex;
@@ -544,6 +1056,115 @@ body {
   flex: 1;
   padding: 6px;
   font-size: 12px;
+  cursor: pointer;
+  background: var(--hover-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+}
+.admin-tab-btn.active {
+  background: var(--primary);
+  color: var(--primary-text);
+  border-color: var(--primary);
+}
+.admin-report-card,
+.admin-account-card {
+  background: var(--hover-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.admin-report-head {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.admin-report-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.admin-report-actions button,
+.admin-account-actions button {
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text);
+  cursor: pointer;
+}
+.admin-account-actions {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0;
+}
+.admin-account-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+.admin-account-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 6px 8px;
+  background: var(--card-bg);
+  border-radius: 4px;
+}
+.admin-account-row-btns {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.admin-account-row-btns button {
+  padding: 3px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--hover-bg);
+  color: var(--text);
+  cursor: pointer;
+}
+.admin-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 12px 0;
+}
+.admin-account-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+#admin-tab-accounts form,
+#admin-tab-legacy form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+#admin-tab-accounts input,
+#admin-tab-legacy input {
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--input-bg);
+  color: var(--text);
+}
+#admin-tab-accounts button[type="submit"],
+#admin-tab-legacy button[type="submit"] {
+  padding: 8px;
+  background: var(--primary);
+  color: var(--primary-text);
+  border: none;
+  border-radius: 4px;
   cursor: pointer;
 }
 
@@ -568,7 +1189,7 @@ body {
 }
 footer {
   text-align: center;
-  color: #999;
+  color: var(--muted);
   font-size: 12px;
   margin-top: 40px;
   padding: 20px 0;
@@ -609,5 +1230,31 @@ footer {
   }
   #post-list .post-row-line .col-time {
     font-size: 11px !important;
+  }
+
+  /* 채팅 말풍선 모바일 최적화 */
+  .chat-bubble-row {
+    max-width: 88%;
+  }
+  #chat-messages {
+    height: 55vh;
+  }
+
+  /* 배추 랭킹 모바일 최적화 */
+  .cabbage-rank-row {
+    padding: 12px;
+    gap: 10px;
+  }
+  .cabbage-rank-title {
+    font-size: 14px;
+  }
+  .cabbage-rank-stats {
+    align-items: flex-end;
+  }
+
+  .header nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 }

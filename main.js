@@ -14,6 +14,8 @@ let activeReportTarget = null; // { type: 'post'|'message', targetId, excerpt }
 let myConversationIds = new Set();
 let globalDmChannel = null;
 let adminAccountResult = null;
+let currentCabbagePeriod = "daily";
+let justCabbagedPostId = null;
 
 const studentEmail = (studentId) => `student-${studentId.trim()}@school-community.invalid`;
 const teacherEmail = (name, birth) => `teacher-${name.trim().replace(/\s+/g, "")}-${birth.replace(/-/g, "")}@school-community.invalid`;
@@ -153,6 +155,7 @@ function showPage(name) {
   if (name === "detail") loadDetail();
   if (name === "dms") loadConversations();
   if (name === "chat") loadChatMessages();
+  if (name === "cabbage-board") loadCabbageRanking();
   window.scrollTo(0, 0);
 }
 
@@ -231,7 +234,7 @@ async function loadDetail() {
     <div class="meta">${escapeHtml(post.author_nickname)}${dmBtnHtml} · 👀 조회 ${post.view_count || 0} · ${time(post.created_at)}</div>
     <div class="detail-content">${escapeHtml(post.content)}</div>
     <div class="actions">
-      <button class="cabbage" id="cabbage-button" type="button">${myCabbage ? "🥬 배추 추천 취소" : "🥬 배추 추천"} ${post.cabbage_count}</button>
+      <button class="cabbage" id="cabbage-button" type="button">${myCabbage ? "🥬 배추 추천 취소" : "🥬 배추 주기"} ${post.cabbage_count}</button>
       <span class="action-right">
         ${!ownPost ? `<button class="report-btn" id="report-post-button" type="button">🚩 신고</button>` : ""}
         ${isAdmin ? `<button class="notice-toggle-btn" id="notice-toggle-button" type="button">${post.is_notice ? "공지 해제" : "공지로 등록"}</button>` : ""}
@@ -255,6 +258,16 @@ async function loadDetail() {
   }
   if (ownPost) $("#own-delete").addEventListener("click", () => deleteOwnPost(post.id));
 
+  // 배추를 방금 준 경우 버튼에 짧은 팝 애니메이션 적용
+  if (justCabbagedPostId === post.id) {
+    const btn = $("#cabbage-button");
+    if (btn) {
+      btn.classList.add("cabbage-pop");
+      setTimeout(() => btn.classList.remove("cabbage-pop"), 450);
+    }
+    justCabbagedPostId = null;
+  }
+
   const { data: comments, error: commentError } = await supabase.from("school_community_comments").select("*").eq("post_id", post.id).order("created_at");
   if (commentError) return toast(`댓글을 불러오지 못했습니다: ${commentError.message}`);
 
@@ -273,6 +286,89 @@ async function toggleNotice(postId, current) {
   if (error) return toast(`공지 설정 실패: ${error.message}`);
   toast(!current ? "공지로 등록되었습니다." : "공지가 해제되었습니다.");
   loadDetail();
+}
+
+// ------------------------------------------------------------
+// 🥬 배추 게시판 / 랭킹 (일간·주간·월간 TOP 5)
+// ------------------------------------------------------------
+
+function cabbagePeriodStartDate(period) {
+  const now = new Date();
+  if (period === "weekly") {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 7);
+    return d;
+  }
+  if (period === "monthly") {
+    const d = new Date(now);
+    d.setMonth(d.getMonth() - 1);
+    return d;
+  }
+  // daily: 오늘 자정부터
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+async function loadCabbageRanking() {
+  const list = $("#cabbage-rank-list");
+  if (!list) return;
+  list.innerHTML = `<div class="cabbage-rank-empty">불러오는 중입니다...</div>`;
+
+  const startDate = cabbagePeriodStartDate(currentCabbagePeriod);
+
+  const { data: recs, error } = await supabase
+    .from("school_community_cabbage_recommends")
+    .select("post_id, created_at")
+    .gte("created_at", startDate.toISOString());
+
+  if (error) {
+    list.innerHTML = `<div class="cabbage-rank-empty">랭킹을 불러오지 못했습니다.</div>`;
+    return toast(`배추 랭킹 조회 실패: ${error.message}`);
+  }
+
+  const counts = {};
+  (recs || []).forEach((r) => { counts[r.post_id] = (counts[r.post_id] || 0) + 1; });
+
+  const topIds = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([id]) => id);
+
+  if (!topIds.length) {
+    list.innerHTML = `<div class="cabbage-rank-empty">해당 기간에 배추를 받은 게시글이 없습니다.</div>`;
+    return;
+  }
+
+  const { data: posts, error: postsError } = await supabase
+    .from("school_community_posts")
+    .select("id,title,author_nickname,comment_count,board_type")
+    .in("id", topIds);
+
+  if (postsError) {
+    list.innerHTML = `<div class="cabbage-rank-empty">게시글 정보를 불러오지 못했습니다.</div>`;
+    return toast(`게시글 정보를 불러오지 못했습니다: ${postsError.message}`);
+  }
+
+  const medals = ["🥇", "🥈", "🥉", "4위", "5위"];
+
+  list.innerHTML = topIds.map((id, idx) => {
+    const post = posts.find((p) => p.id === id);
+    if (!post) return "";
+    return `
+      <button class="cabbage-rank-row rank-${idx + 1}" data-post-id="${post.id}" type="button">
+        <span class="cabbage-rank-medal">${medals[idx]}</span>
+        <span class="cabbage-rank-info">
+          <span class="cabbage-rank-title">${escapeHtml(post.title)}</span>
+          <span class="cabbage-rank-author">${escapeHtml(post.author_nickname)}</span>
+        </span>
+        <span class="cabbage-rank-stats">
+          <span class="cabbage-rank-count">🥬 배추 ${counts[id]}개</span>
+          <span class="cabbage-rank-comments">💬 ${post.comment_count || 0}</span>
+        </span>
+      </button>
+    `;
+  }).join("");
 }
 
 // ------------------------------------------------------------
@@ -669,6 +765,7 @@ async function toggleCabbage(postId, alreadyRecommended) {
     ? await supabase.from("school_community_cabbage_recommends").delete().eq("post_id", postId).eq("user_id", currentUser.id)
     : await supabase.from("school_community_cabbage_recommends").insert({ post_id: postId, user_id: currentUser.id });
   if (result.error) return toast(`추천 연산 처리 실패: ${result.error.message}`);
+  if (!alreadyRecommended) justCabbagedPostId = postId;
   await loadDetail();
 }
 
@@ -757,6 +854,21 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const periodBtn = event.target.closest("#cabbage-period-tabs button");
+  if (periodBtn) {
+    currentCabbagePeriod = periodBtn.dataset.period;
+    document.querySelectorAll("#cabbage-period-tabs button").forEach((button) => button.classList.toggle("active", button === periodBtn));
+    loadCabbageRanking();
+    return;
+  }
+
+  const cabbageRankRow = event.target.closest(".cabbage-rank-row");
+  if (cabbageRankRow && cabbageRankRow.dataset.postId) {
+    selectedPostId = cabbageRankRow.dataset.postId;
+    showPage("detail");
+    return;
+  }
+
   const postRow = event.target.closest(".post-row-line");
   if (postRow && postRow.dataset.postId) {
     selectedPostId = postRow.dataset.postId;
@@ -789,8 +901,6 @@ document.addEventListener("click", (event) => {
 
 // Shift+T 단축키: 입력 중(Input/Textarea/Select/contenteditable)에는 동작하지 않도록 하고,
 // 키를 누르고 있을 때 반복 발화(event.repeat)로 패널이 깜빡이며 재오픈되는 현상을 방지합니다.
-// (이전 버전은 이 가드가 없어, 글쓰기/댓글/쪽지 등에서 대문자 T를 입력할 때마다
-//  관리자(신고 관리) 패널이 열렸다 닫혔다 하며 "꺼지지 않는" 것처럼 보이는 버그가 있었습니다.)
 document.addEventListener("keydown", (event) => {
   if (event.repeat) return;
 
