@@ -12,13 +12,15 @@
     <nav id="guest-nav">
       <button data-page="login" type="button">로그인</button>
       <button class="primary" data-page="signup" type="button">회원가입</button>
+      <button id="theme-toggle" type="button" aria-label="다크모드 전환">🌙</button>
     </nav>
     <nav id="member-nav" style="display: none;">
       <span id="current-user"></span>
       <button data-page="boards" type="button">게시판</button>
-      <button data-page="dms" type="button">📬 쪽지함</button>
+      <button data-page="dms" id="dm-nav-button" type="button">📬 쪽지함</button>
       <button data-page="write" type="button">글쓰기</button>
       <button id="logout-button" type="button">로그아웃</button>
+      <button id="theme-toggle-member" type="button" aria-label="다크모드 전환">🌙</button>
     </nav>
   </header>
 
@@ -39,8 +41,13 @@
     </section>
 
     <section class="page" id="page-login">
+      <div class="role-tabs" id="login-role-tabs">
+        <button class="role-tab-btn active" data-role-tab="student" type="button">학생 로그인</button>
+        <button class="role-tab-btn" data-role-tab="teacher" type="button">선생님 로그인</button>
+      </div>
+
       <form class="form-card" id="login-form">
-        <h1>로그인</h1>
+        <h1>학생 로그인</h1>
         <p>학번과 패스워드를 입력하여 접속하세요.</p>
         <label for="login-student-id">학번</label>
         <input id="login-student-id" required placeholder="예: 10515" autocomplete="username">
@@ -49,13 +56,31 @@
         <button type="submit" class="primary">로그인</button>
         <button class="text-button" type="button" data-page="signup">아직 계정이 없으신가요? 회원가입</button>
       </form>
+
+      <form class="form-card" id="teacher-login-form" hidden>
+        <h1>선생님 로그인</h1>
+        <p>실명, 생년월일, 비밀번호를 입력하여 접속하세요.</p>
+        <label for="teacher-login-name">이름</label>
+        <input id="teacher-login-name" required placeholder="실명">
+        <label for="teacher-login-birth">생년월일</label>
+        <input id="teacher-login-birth" type="date" required>
+        <label for="teacher-login-password">비밀번호</label>
+        <input id="teacher-login-password" type="password" required autocomplete="current-password">
+        <button type="submit" class="primary">로그인</button>
+        <button class="text-button" type="button" data-page="signup">아직 계정이 없으신가요? 회원가입</button>
+      </form>
     </section>
 
     <section class="page" id="page-signup">
+      <div class="role-tabs" id="signup-role-tabs">
+        <button class="role-tab-btn active" data-role-tab="student" type="button">학생 회원가입</button>
+        <button class="role-tab-btn" data-role-tab="teacher" type="button">선생님 회원가입</button>
+      </div>
+
       <form class="form-card" id="signup-form">
-        <h1>회원가입</h1>
+        <h1>학생 회원가입</h1>
         <p>중복 가입 방지 및 원활한 익명 활동을 위해 학번 세부 사항을 선택해 주세요.</p>
-        
+
         <div class="form-row-grid">
           <div>
             <label for="signup-grade">학년</label>
@@ -91,6 +116,21 @@
         <input id="signup-password" type="password" minlength="8" required placeholder="8자 이상 조합 설정" autocomplete="new-password">
         <button type="submit" class="primary">가입 신청 완료</button>
       </form>
+
+      <form class="form-card" id="teacher-signup-form" hidden>
+        <h1>선생님 회원가입</h1>
+        <p>실명, 생년월일, 익명 닉네임, 비밀번호를 입력해 주세요.</p>
+
+        <label for="teacher-signup-name">이름</label>
+        <input id="teacher-signup-name" placeholder="실명을 입력하세요" required>
+        <label for="teacher-signup-birth">생년월일</label>
+        <input id="teacher-signup-birth" type="date" required>
+        <label for="teacher-signup-nickname">익명 닉네임</label>
+        <input id="teacher-signup-nickname" placeholder="2자 이상 20자 이하" required>
+        <label for="teacher-signup-password">비밀번호</label>
+        <input id="teacher-signup-password" type="password" minlength="8" required placeholder="8자 이상 조합 설정" autocomplete="new-password">
+        <button type="submit" class="primary">가입 신청 완료</button>
+      </form>
     </section>
 
     <section class="page" id="page-boards">
@@ -106,6 +146,16 @@
         <button data-board="칭찬" type="button">칭찬</button>
         <button data-board="질문" type="button">질문</button>
       </div>
+      
+      <div class="post-table-head">
+        <span class="col-title">제목</span>
+        <span class="col-author">작성자</span>
+        <span class="col-stat">조회</span>
+        <span class="col-stat">배추</span>
+        <span class="col-stat">댓글</span>
+        <span class="col-time">시간</span>
+      </div>
+      
       <div id="post-list"></div>
     </section>
 
@@ -130,7 +180,7 @@
     <section class="page" id="page-detail">
       <button class="text-button" data-page="boards" type="button">← 목록으로 돌아가기</button>
       <article class="detail-card" id="post-detail"></article>
-      
+
       <section class="comments">
         <h2>댓글 의견 <span id="comment-count">0</span></h2>
         <div id="comment-list"></div>
@@ -142,67 +192,53 @@
     </section>
 
     <section class="page" id="page-dms">
-  <div class="title-row">
-    <div>
-      <h1>📬 쪽지함</h1>
-      <p>닉네임 검색으로 다른 학우와 대화를 시작하세요.</p>
-    </div>
-  </div>
+      <div class="title-row">
+        <div>
+          <h1>📬 쪽지함</h1>
+          <p>닉네임 검색으로 다른 학우와 대화를 시작하세요.</p>
+        </div>
+      </div>
 
-  <!-- 닉네임 검색 -->
-  <div class="dm-search-box">
-    <input 
-      id="dm-search-input" 
-      type="text" 
-      placeholder="닉네임 검색"
-    >
+      <div class="dm-search-box">
+        <input id="dm-search-input" type="text" placeholder="닉네임 검색" autocomplete="off">
+        <div id="dm-search-results" hidden></div>
+      </div>
 
-    <div id="dm-search-results" hidden></div>
-  </div>
+      <div id="dm-conversation-list"></div>
+    </section>
 
+    <section class="page" id="page-chat">
+      <div class="chat-header">
+        <button class="chat-back" data-page="dms" type="button" aria-label="대화 목록으로">←</button>
+        <h2 id="chat-partner-name"></h2>
+      </div>
 
-  <!-- 기존 대화 목록 -->
-  <div id="dm-conversation-list"></div>
+      <div id="chat-messages"></div>
 
-</section>
-
-
-<section class="page" id="page-chat">
-
-  <div class="chat-header">
-    <h2 id="chat-partner-name"></h2>
-  </div>
-
-  <div id="chat-messages"></div>
-
-  <form id="chat-form">
-
-    <textarea 
-      id="chat-input"
-      placeholder="메시지를 입력하세요"
-    ></textarea>
-
-    <button type="submit">
-      전송
-    </button>
-
-  </form>
-
-</section>
-
-
+      <form id="chat-form">
+        <textarea id="chat-input" placeholder="메시지를 입력하세요" required maxlength="1000" rows="1"></textarea>
+        <button type="submit">전송</button>
+      </form>
+    </section>
   </main>
 
-  <div id="dm-modal" class="modal-overlay" style="display: none;">
+  <div id="report-modal" class="modal-overlay" hidden>
     <div class="modal-content form-card">
-      <h2>✉ 익명 쪽지 전송</h2>
-      <p style="margin-bottom: 12px;">수신인: <strong id="dm-modal-receiver-name" style="color: var(--blue);"></strong></p>
-      <form id="dm-modal-form">
-        <label for="dm-modal-message">메시지 내용</label>
-        <textarea id="dm-modal-message" placeholder="상대방에게 상처를 주는 비방성 단어 선택 시 이용이 제한될 수 있습니다." required></textarea>
+      <h2>🚩 신고하기</h2>
+      <form id="report-form">
+        <label for="report-reason">신고 사유</label>
+        <select id="report-reason" required>
+          <option value="욕설/비하">욕설/비하</option>
+          <option value="광고">광고</option>
+          <option value="도배">도배</option>
+          <option value="부적절한 내용">부적절한 내용</option>
+          <option value="기타">기타</option>
+        </select>
+        <label for="report-detail">상세 내용 (선택)</label>
+        <textarea id="report-detail" maxlength="500" placeholder="자세한 상황을 알려주시면 처리에 도움이 됩니다."></textarea>
         <div class="modal-buttons">
-          <button type="button" id="dm-modal-cancel" class="text-button">취소</button>
-          <button type="submit" class="primary">전송하기</button>
+          <button type="button" id="report-cancel" class="text-button">취소</button>
+          <button type="submit" class="primary">신고 제출</button>
         </div>
       </form>
     </div>
@@ -214,16 +250,38 @@
       <button id="admin-close" type="button">×</button>
     </div>
     <p class="hint">관리자 권한 단축키 가이드 · Shift + T</p>
-    <form id="admin-delete-post">
-      <h3>글 강제 삭제</h3>
-      <input id="admin-post-id" placeholder="대상 포스트 UUID 입력" required>
-      <button type="submit">강제 삭제 집행</button>
-    </form>
-    <form id="admin-delete-comment">
-      <h3>댓글 강제 삭제</h3>
-      <input id="admin-comment-id" placeholder="대상 댓글 UUID 입력" required>
-      <button type="submit">강제 삭제 집행</button>
-    </form>
+
+    <div class="admin-tabs">
+      <button class="admin-tab-btn active" data-admin-tab="reports" type="button">신고 관리</button>
+      <button class="admin-tab-btn" data-admin-tab="accounts" type="button">계정 관리</button>
+      <button class="admin-tab-btn" data-admin-tab="legacy" type="button">직접 삭제</button>
+    </div>
+
+    <div class="admin-tab-panel" id="admin-tab-reports">
+      <div id="admin-report-list"></div>
+    </div>
+
+    <div class="admin-tab-panel" id="admin-tab-accounts" hidden>
+      <form id="admin-account-search-form">
+        <h3>학번(학생) / 실명(선생님)으로 찾기</h3>
+        <input id="admin-account-search-input" placeholder="학번 또는 선생님 실명 입력" required>
+        <button type="submit">검색</button>
+      </form>
+      <div id="admin-account-result"></div>
+    </div>
+
+    <div class="admin-tab-panel" id="admin-tab-legacy" hidden>
+      <form id="admin-delete-post">
+        <h3>글 강제 삭제 (UUID)</h3>
+        <input id="admin-post-id" placeholder="대상 포스트 UUID 입력" required>
+        <button type="submit">강제 삭제 집행</button>
+      </form>
+      <form id="admin-delete-comment">
+        <h3>댓글 강제 삭제 (UUID)</h3>
+        <input id="admin-comment-id" placeholder="대상 댓글 UUID 입력" required>
+        <button type="submit">강제 삭제 집행</button>
+      </form>
+    </div>
   </aside>
 
   <div id="toast" class="toast" role="status"></div>
