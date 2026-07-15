@@ -296,6 +296,16 @@ function closeReportModal() {
 
 $("#report-cancel").addEventListener("click", closeReportModal);
 
+// 오버레이 배경(모달 바깥) 클릭 시에도 닫히도록 처리
+$("#report-modal").addEventListener("click", (event) => {
+  if (event.target === $("#report-modal")) closeReportModal();
+});
+
+// Esc 키로도 신고 모달을 닫을 수 있도록 처리
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !$("#report-modal").hidden) closeReportModal();
+});
+
 $("#report-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!currentUser || !activeReportTarget) return;
@@ -777,7 +787,22 @@ document.addEventListener("click", (event) => {
   }
 });
 
+// Shift+T 단축키: 입력 중(Input/Textarea/Select/contenteditable)에는 동작하지 않도록 하고,
+// 키를 누르고 있을 때 반복 발화(event.repeat)로 패널이 깜빡이며 재오픈되는 현상을 방지합니다.
+// (이전 버전은 이 가드가 없어, 글쓰기/댓글/쪽지 등에서 대문자 T를 입력할 때마다
+//  관리자(신고 관리) 패널이 열렸다 닫혔다 하며 "꺼지지 않는" 것처럼 보이는 버그가 있었습니다.)
 document.addEventListener("keydown", (event) => {
+  if (event.repeat) return;
+
+  const target = event.target;
+  const isTypingContext = !!target && (
+    target.tagName === "INPUT" ||
+    target.tagName === "TEXTAREA" ||
+    target.tagName === "SELECT" ||
+    target.isContentEditable
+  );
+  if (isTypingContext) return;
+
   if (event.shiftKey && event.key.toLowerCase() === "t") {
     if (!isAdmin) return;
     const panel = $("#admin-panel");
