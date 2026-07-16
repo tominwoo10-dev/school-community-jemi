@@ -17,10 +17,17 @@
     </nav>
     <nav id="member-nav" style="display: none;">
       <span id="current-user"></span>
+      <form id="search-form" class="nav-search-form">
+        <input id="search-input" type="text" placeholder="🔍 검색" autocomplete="off">
+      </form>
       <button data-page="boards" type="button">게시판</button>
       <button data-page="cabbage-board" type="button">🥬 배추게시판</button>
       <button data-page="dms" id="dm-nav-button" type="button">📬 쪽지함</button>
       <button data-page="write" type="button">글쓰기</button>
+      <button id="notification-nav-button" type="button" aria-label="알림">
+        🔔<span id="notification-badge" class="nav-badge" hidden>0</span>
+      </button>
+      <button id="my-profile-button" type="button">내 프로필</button>
       <button id="logout-button" type="button">로그아웃</button>
       <button id="theme-toggle-member" type="button" aria-label="다크모드 전환">🌙</button>
     </nav>
@@ -158,7 +165,7 @@
         <span class="col-time">시간</span>
       </div>
       
-      <div id="post-list"></div>
+      <div id="post-list" class="board-post-list"></div>
     </section>
 
     <section class="page" id="page-write">
@@ -208,6 +215,57 @@
       <div id="cabbage-rank-list"></div>
     </section>
 
+    <section class="page" id="page-search">
+      <div class="title-row">
+        <div>
+          <h1>🔍 검색 결과</h1>
+          <p id="search-summary"></p>
+        </div>
+      </div>
+      <div id="search-result-list" class="board-post-list"></div>
+    </section>
+
+    <section class="page" id="page-profile">
+      <div class="profile-header-card">
+        <div class="profile-avatar-wrap no-avatar" id="profile-avatar-wrap">
+          <img id="profile-avatar-img" class="profile-avatar" alt="프로필 사진">
+          <input id="profile-avatar-input" type="file" accept="image/*" hidden>
+        </div>
+        <div class="profile-header-info">
+          <div class="profile-nickname-row">
+            <h1 id="profile-nickname-display"></h1>
+            <span id="profile-cabbage-inline" class="mini-cabbage"></span>
+          </div>
+          <div class="profile-nickname-edit" id="profile-nickname-edit" hidden>
+            <input id="profile-nickname-input" type="text" maxlength="20" placeholder="2자 이상 20자 이하">
+            <button id="profile-nickname-save" type="button">저장</button>
+            <button id="profile-nickname-cancel" class="text-button" type="button">취소</button>
+          </div>
+          <div class="profile-edit-buttons">
+            <button id="profile-avatar-edit-btn" class="text-button" type="button" hidden>사진 변경</button>
+            <button id="profile-nickname-edit-btn" class="text-button" type="button" hidden>닉네임 변경</button>
+          </div>
+          <div class="profile-meta-row">
+            <span id="profile-student-id-display"></span>
+            <span id="profile-joined-display"></span>
+          </div>
+          <div class="profile-stats-row">
+            <span>🥬 배추 <strong id="profile-cabbage-total">0</strong></span>
+            <span>📝 게시글 <strong id="profile-post-count">0</strong></span>
+            <span>💬 댓글 <strong id="profile-comment-count">0</strong></span>
+          </div>
+          <button id="profile-dm-button" class="primary" type="button" hidden>✉ 쪽지 보내기</button>
+        </div>
+      </div>
+
+      <div class="tabs" id="profile-tabs">
+        <button class="active" data-profile-tab="posts" type="button">작성 게시글</button>
+        <button data-profile-tab="comments" type="button">작성 댓글</button>
+        <button data-profile-tab="top" type="button">인기 게시글</button>
+      </div>
+      <div id="profile-tab-content"></div>
+    </section>
+
     <section class="page" id="page-dms">
       <div class="title-row">
         <div>
@@ -227,7 +285,7 @@
     <section class="page" id="page-chat">
       <div class="chat-header">
         <button class="chat-back" data-page="dms" type="button" aria-label="대화 목록으로">←</button>
-        <h2 id="chat-partner-name"></h2>
+        <h2 id="chat-partner-name" class="author-link"></h2>
       </div>
 
       <div id="chat-messages"></div>
@@ -261,6 +319,14 @@
     </div>
   </div>
 
+  <aside class="notification-panel" id="notification-panel" hidden>
+    <div class="notification-head">
+      <h2>🔔 알림</h2>
+      <button id="notification-close" type="button">×</button>
+    </div>
+    <div id="notification-list"></div>
+  </aside>
+
   <aside class="admin-panel" id="admin-panel" hidden>
     <div class="admin-head">
       <h2>운영자 도구</h2>
@@ -271,6 +337,8 @@
     <div class="admin-tabs">
       <button class="admin-tab-btn active" data-admin-tab="reports" type="button">신고 관리</button>
       <button class="admin-tab-btn" data-admin-tab="accounts" type="button">계정 관리</button>
+      <button class="admin-tab-btn" data-admin-tab="posts" type="button">게시글 관리</button>
+      <button class="admin-tab-btn" data-admin-tab="words" type="button">금칙어 관리</button>
       <button class="admin-tab-btn" data-admin-tab="legacy" type="button">직접 삭제</button>
     </div>
 
@@ -285,6 +353,24 @@
         <button type="submit">검색</button>
       </form>
       <div id="admin-account-result"></div>
+    </div>
+
+    <div class="admin-tab-panel" id="admin-tab-posts" hidden>
+      <form id="admin-post-search-form">
+        <h3>게시글 제목으로 검색</h3>
+        <input id="admin-post-search-input" placeholder="게시글 제목 입력" required>
+        <button type="submit">검색</button>
+      </form>
+      <div id="admin-post-search-result"></div>
+    </div>
+
+    <div class="admin-tab-panel" id="admin-tab-words" hidden>
+      <form id="admin-word-add-form">
+        <h3>금칙어 추가</h3>
+        <input id="admin-word-input" placeholder="금칙어 입력" required>
+        <button type="submit">추가</button>
+      </form>
+      <div id="admin-word-list"></div>
     </div>
 
     <div class="admin-tab-panel" id="admin-tab-legacy" hidden>

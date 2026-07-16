@@ -17,6 +17,19 @@ let adminAccountResult = null;
 let currentCabbagePeriod = "daily";
 let justCabbagedPostId = null;
 
+// 3차 업데이트 상태 변수
+let cabbageTotalCache = new Map();
+let notificationsCache = [];
+let notificationChannel = null;
+let bannedWordsCache = [];
+let viewedProfileUserId = null;
+let profileActiveTab = "posts";
+let profileCache = { posts: [], comments: [] };
+let lastSearchQuery = "";
+let adminPostSearchCache = [];
+let forceLogoutChannel = null;
+let sessionStartedAt = null;
+
 const studentEmail = (studentId) => `student-${studentId.trim()}@school-community.invalid`;
 const teacherEmail = (name, birth) => `teacher-${name.trim().replace(/\s+/g, "")}-${birth.replace(/-/g, "")}@school-community.invalid`;
 const escapeHtml = (text) => { const div = document.createElement("div"); div.textContent = text || ""; return div.innerHTML; };
@@ -45,11 +58,25 @@ function updateHeader() {
   if (currentUser) {
     $("#guest-nav").style.display = "none";
     $("#member-nav").style.display = "flex";
-    $("#current-user").textContent = currentProfile ? `${currentProfile.nickname} 님` : "정보 연동 중..";
+    renderCurrentUserLabel();
   } else {
     $("#guest-nav").style.display = "flex";
     $("#member-nav").style.display = "none";
     $("#current-user").textContent = "";
+  }
+}
+
+function renderCurrentUserLabel() {
+  if (!currentUser || !currentProfile) {
+    $("#current-user").textContent = currentUser ? "정보 연동 중.." : "";
+    return;
+  }
+  const cached = cabbageTotalCache.get(currentUser.id);
+  if (cached == null) {
+    $("#current-user").textContent = `${currentProfile.nickname} 님`;
+    ensureCabbageTotals([currentUser.id]).then(() => renderCurrentUserLabel());
+  } else {
+    $("#current-user").textContent = `${currentProfile.nickname} 님 🥬${cached}`;
   }
 }
 
@@ -96,6 +123,318 @@ function switchRoleTab(area, role) {
 }
 
 // ------------------------------------------------------------
+// 🥬 닉네임 옆 배추 총합 캐시
+// ------------------------------------------------------------
+
+async function ensureCabbageTotals(authorIds) {
+  const idsToFetch = [...new Set((authorIds || []).filter(Boolean))].filter((id) => !cabbageTotalCache.has(id));
+  if (!idsToFetch.length) return;
+  const { data, error } = await supabase
+    .from("school_community_posts")
+    .select("author_id,cabbage_count")
+    .in("author_id", idsToFetch);
+  if (error) return;
+  const sums = {};
+  idsToFetch.forEach((id) => { sums[id] = 0; });
+  (data || []).forEach((p) => { sums[p.author_id] = (sums[p.author_id] || 0) + (p.cabbage_count || 0); });
+  Object.entries(sums).forEach(([id, total]) => cabbageTotalCache.set(id, total));
+}
+
+function cabbageBadge(authorId) {
+  const total = cabbageTotalCache.get(authorId);
+  return `<span class="mini-cabbage">🥬${total ?? 0}</span>`;
+}
+
+function authorLinkAttrs(authorId) {
+  return `class="author-link" data-user-id="${authorId || ""}"`;
+}
+
+// ------------------------------------------------------------
+// 🔔 알림 시스템
+// ------------------------------------------------------------
+
+async function createNotification(userId, type, message, targetType, targetId) {
+  if (!userId) return;
+  await supabase.from("school_community_notifications").insert({
+    user_id: userId, type, message, target_type: targetType, target_id: targetId
+  });
+}
+
+async function loadNotifications() {
+  if (!currentUser) return;
+  const { data, error } = await supabase
+    .from("school_community_notifications")
+    .select("*")
+    .eq("user_id", currentUser.id)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) return;
+  notificationsCache = data || [];
+  renderNotifications();
+  updateNotificationBadge();
+}
+
+function updateNotificationBadge() {
+  const badge = $("#notification-badge");
+  if (!badge) return;
+  const unread = notificationsCache.filter((n) => !n.is_read).length;
+  badge.textContent = unread > 99 ? "99+" : String(unread);
+  badge.hidden = unread === 0;
+}
+
+function renderNotifications() {
+  const list = $("#notification-list");
+  if (!list) return;
+  list.innerHTML = notificationsCache.length ? notificationsCache.map((n) => `
+    <button class="notification-row ${n.is_read ? "" : "unread"}" data-notification-id="${n.id}" data-target-type="${n.target_type || ""}" data-target-id="${n.target_id || ""}" type="button">
+      <span class="notification-message">${escapeHtml(n.message)}</span>
+      <span class="notification-time">${time(n.created_at)}</span>
+    </button>
+  `).join("") : `<div class="notification-empty">알림이 없습니다.</div>`;
+}
+
+async function markNotificationRead(id) {
+  const notif = notificationsCache.find((n) => n.id === id);
+  if (notif && !notif.is_read) {
+    notif.is_read = true;
+    renderNotifications();
+    updateNotificationBadge();
+    await supabase.from("school_community_notifications").update({ is_read: true }).eq("id", id);
+  }
+}
+
+function subscribeNotifications() {
+  unsubscribeNotifications();
+  notificationChannel = supabase
+    .channel(`notif-${currentUser.id}`)
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "school_community_notifications", filter: `user_id=eq.${currentUser.id}` }, (payload) => {
+      notificationsCache.unshift(payload.new);
+      renderNotifications();
+      updateNotificationBadge();
+      toast("🔔 새 알림이 도착했습니다.");
+    })
+    .subscribe();
+}
+
+function unsubscribeNotifications() {
+  if (notificationChannel) { supabase.removeChannel(notificationChannel); notificationChannel = null; }
+}
+
+$("#notification-nav-button").addEventListener("click", () => {
+  const panel = $("#notification-panel");
+  if (!panel) return;
+  panel.hidden = !panel.hidden;
+  if (!panel.hidden) loadNotifications();
+});
+$("#notification-close").addEventListener("click", () => { $("#notification-panel").hidden = true; });
+
+async function openConversationById(conversationId) {
+  if (!currentUser) return;
+  let conv = conversationsCache.find((c) => c.id === conversationId);
+  if (!conv) {
+    const { data } = await supabase.from("school_community_conversations").select("*").eq("id", conversationId).maybeSingle();
+    if (!data) return toast("대화를 찾을 수 없습니다.");
+    const isUser1 = data.user1 === currentUser.id;
+    conv = { ...data, partnerId: isUser1 ? data.user2 : data.user1, partnerNickname: isUser1 ? data.user2_nickname : data.user1_nickname };
+  }
+  activeConversationId = conv.id;
+  activeChatPartner = { id: conv.partnerId, nickname: conv.partnerNickname };
+  showPage("chat");
+}
+
+function periodLabel(period) {
+  return period === "daily" ? "일간" : period === "weekly" ? "주간" : "월간";
+}
+
+// ------------------------------------------------------------
+// 🚫 금칙어 시스템
+// ------------------------------------------------------------
+
+async function loadBannedWords() {
+  const { data, error } = await supabase.from("school_community_banned_words").select("*").order("created_at", { ascending: false });
+  if (!error) bannedWordsCache = data || [];
+}
+
+function containsBannedWord(text) {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  return bannedWordsCache.some((w) => w.word && lower.includes(w.word.toLowerCase()));
+}
+
+// ------------------------------------------------------------
+// 👤 프로필 페이지
+// ------------------------------------------------------------
+
+function openProfile(userId) {
+  if (!userId) return;
+  viewedProfileUserId = userId;
+  profileActiveTab = "posts";
+  document.querySelectorAll("#profile-tabs button").forEach((b) => b.classList.toggle("active", b.dataset.profileTab === "posts"));
+  showPage("profile");
+}
+
+$("#my-profile-button").addEventListener("click", () => { if (currentUser) openProfile(currentUser.id); });
+
+async function loadProfilePage() {
+  if (!viewedProfileUserId) return;
+  const isOwn = currentUser && viewedProfileUserId === currentUser.id;
+
+  const { data: profile, error } = await supabase
+    .from("school_community_profiles")
+    .select("id,nickname,role,student_id,avatar_url,created_at")
+    .eq("id", viewedProfileUserId)
+    .maybeSingle();
+
+  if (error || !profile) { toast("프로필을 불러오지 못했습니다."); return showPage("boards"); }
+
+  $("#profile-nickname-display").textContent = profile.nickname;
+  $("#profile-nickname-display").hidden = false;
+  $("#profile-nickname-edit").hidden = true;
+
+  const wrap = $("#profile-avatar-wrap");
+  const avatarImg = $("#profile-avatar-img");
+  if (profile.avatar_url) {
+    avatarImg.src = profile.avatar_url;
+    wrap.classList.remove("no-avatar");
+  } else {
+    avatarImg.removeAttribute("src");
+    wrap.classList.add("no-avatar");
+  }
+
+  $("#profile-student-id-display").textContent = (isOwn && profile.student_id) ? `학번 ${profile.student_id}` : "";
+  $("#profile-joined-display").textContent = profile.created_at ? `가입일 ${new Date(profile.created_at).toLocaleDateString("ko-KR")}` : "";
+
+  $("#profile-avatar-edit-btn").hidden = !isOwn;
+  $("#profile-nickname-edit-btn").hidden = !isOwn;
+  $("#profile-dm-button").hidden = isOwn || !currentUser;
+
+  const { data: posts } = await supabase
+    .from("school_community_posts")
+    .select("id,title,board_type,cabbage_count,comment_count,created_at")
+    .eq("author_id", viewedProfileUserId)
+    .order("created_at", { ascending: false });
+
+  const { data: comments } = await supabase
+    .from("school_community_comments")
+    .select("id,post_id,content,created_at")
+    .eq("author_id", viewedProfileUserId)
+    .order("created_at", { ascending: false });
+
+  const totalCabbage = (posts || []).reduce((sum, p) => sum + (p.cabbage_count || 0), 0);
+  cabbageTotalCache.set(viewedProfileUserId, totalCabbage);
+
+  $("#profile-cabbage-total").textContent = totalCabbage;
+  $("#profile-cabbage-inline").textContent = `🥬${totalCabbage}`;
+  $("#profile-post-count").textContent = (posts || []).length;
+  $("#profile-comment-count").textContent = (comments || []).length;
+
+  profileCache = { posts: posts || [], comments: comments || [] };
+  renderProfileTabContent();
+
+  $("#profile-dm-button").onclick = () => startConversationAndOpen(viewedProfileUserId, profile.nickname);
+  $("#profile-avatar-edit-btn").onclick = () => $("#profile-avatar-input").click();
+  $("#profile-nickname-edit-btn").onclick = () => {
+    $("#profile-nickname-display").hidden = true;
+    $("#profile-nickname-edit-btn").hidden = true;
+    $("#profile-nickname-edit").hidden = false;
+    $("#profile-nickname-input").value = profile.nickname;
+  };
+}
+
+function renderProfileTabContent() {
+  const box = $("#profile-tab-content");
+  if (!box) return;
+  if (profileActiveTab === "posts") {
+    box.innerHTML = profileCache.posts.length ? profileCache.posts.map((p) => `
+      <button class="profile-list-row" data-post-id="${p.id}" type="button">
+        <span class="profile-list-title">${escapeHtml(p.title)}</span>
+        <span class="profile-list-meta">🥬 ${p.cabbage_count || 0} · 💬 ${p.comment_count || 0} · ${shortTime(p.created_at)}</span>
+      </button>
+    `).join("") : `<div class="admin-empty">작성한 게시글이 없습니다.</div>`;
+  } else if (profileActiveTab === "comments") {
+    box.innerHTML = profileCache.comments.length ? profileCache.comments.map((c) => `
+      <button class="profile-list-row" data-post-id="${c.post_id}" type="button">
+        <span class="profile-list-title">${escapeHtml((c.content || "").slice(0, 60))}</span>
+        <span class="profile-list-meta">${shortTime(c.created_at)}</span>
+      </button>
+    `).join("") : `<div class="admin-empty">작성한 댓글이 없습니다.</div>`;
+  } else {
+    const topPosts = [...profileCache.posts].sort((a, b) => (b.cabbage_count || 0) - (a.cabbage_count || 0)).slice(0, 5);
+    box.innerHTML = topPosts.length ? topPosts.map((p) => `
+      <button class="profile-list-row" data-post-id="${p.id}" type="button">
+        <span class="profile-list-title">${escapeHtml(p.title)}</span>
+        <span class="profile-list-meta">🥬 배추 ${p.cabbage_count || 0}개</span>
+      </button>
+    `).join("") : `<div class="admin-empty">받은 배추가 있는 게시글이 없습니다.</div>`;
+  }
+}
+
+$("#profile-avatar-input").addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  if (!file || !currentUser) return;
+  const path = `${currentUser.id}/${Date.now()}-${file.name}`;
+  const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+  if (uploadError) return toast(`프로필 사진 업로드 실패: ${uploadError.message}`);
+  const { data: publicUrlData } = supabase.storage.from("avatars").getPublicUrl(path);
+  const avatarUrl = publicUrlData?.publicUrl;
+  const { error } = await supabase.from("school_community_profiles").update({ avatar_url: avatarUrl }).eq("id", currentUser.id);
+  if (error) return toast(`프로필 저장 실패: ${error.message}`);
+  toast("프로필 사진이 변경되었습니다.");
+  loadProfilePage();
+});
+
+$("#profile-nickname-save").addEventListener("click", async () => {
+  const value = $("#profile-nickname-input").value.trim();
+  if (value.length < 2 || value.length > 20) return toast("닉네임은 2자 이상 20자 이하여야 합니다.");
+  const { error } = await supabase.from("school_community_profiles").update({ nickname: value }).eq("id", currentUser.id);
+  if (error) return toast(`닉네임 변경 실패: ${error.message}`);
+  currentProfile.nickname = value;
+  updateHeader();
+  toast("닉네임이 변경되었습니다.");
+  loadProfilePage();
+});
+$("#profile-nickname-cancel").addEventListener("click", () => {
+  $("#profile-nickname-display").hidden = false;
+  $("#profile-nickname-edit-btn").hidden = false;
+  $("#profile-nickname-edit").hidden = true;
+});
+
+// ------------------------------------------------------------
+// 🔍 검색
+// ------------------------------------------------------------
+
+$("#search-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const query = $("#search-input").value.trim();
+  if (!query) return;
+  lastSearchQuery = query;
+  showPage("search");
+});
+
+async function loadSearchResults() {
+  const box = $("#search-result-list");
+  const summary = $("#search-summary");
+  if (!box) return;
+  if (!lastSearchQuery) { box.innerHTML = ""; if (summary) summary.textContent = ""; return; }
+  if (summary) summary.textContent = `"${lastSearchQuery}" 검색 결과`;
+  box.innerHTML = `<div class="cabbage-rank-empty">검색 중입니다...</div>`;
+
+  const escaped = lastSearchQuery.replace(/[%_,]/g, "");
+  const { data, error } = await supabase
+    .from("school_community_posts")
+    .select("*")
+    .or(`title.ilike.%${escaped}%,content.ilike.%${escaped}%,author_nickname.ilike.%${escaped}%`)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) { box.innerHTML = `<div class="cabbage-rank-empty">검색 중 오류가 발생했습니다.</div>`; return toast(`검색 실패: ${error.message}`); }
+  if (!data || !data.length) { box.innerHTML = `<div class="cabbage-rank-empty">일치하는 결과가 없습니다.</div>`; return; }
+
+  await ensureCabbageTotals(data.map((p) => p.author_id));
+  box.innerHTML = data.map((p) => renderPostRow(p, false)).join("");
+}
+
+// ------------------------------------------------------------
 // DM 배지(안 읽은 메시지 알림)
 // ------------------------------------------------------------
 
@@ -132,11 +471,34 @@ function unsubscribeGlobalDmBadge() {
 }
 
 // ------------------------------------------------------------
+// 🚪 관리자 강제 로그아웃 감지
+// ------------------------------------------------------------
+
+function subscribeForceLogout() {
+  unsubscribeForceLogout();
+  sessionStartedAt = new Date();
+  forceLogoutChannel = supabase
+    .channel(`force-logout-${currentUser.id}`)
+    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "school_community_profiles", filter: `id=eq.${currentUser.id}` }, (payload) => {
+      const kickAt = payload.new.force_logout_at;
+      if (kickAt && new Date(kickAt) > sessionStartedAt) {
+        toast("관리자에 의해 로그아웃 처리되었습니다.");
+        supabase.auth.signOut();
+      }
+    })
+    .subscribe();
+}
+
+function unsubscribeForceLogout() {
+  if (forceLogoutChannel) { supabase.removeChannel(forceLogoutChannel); forceLogoutChannel = null; }
+}
+
+// ------------------------------------------------------------
 // 페이지 라우팅
 // ------------------------------------------------------------
 
 function showPage(name) {
-  if (["boards", "write", "detail", "dms", "chat"].includes(name) && !currentUser) {
+  if (["boards", "write", "detail", "dms", "chat", "profile", "search"].includes(name) && !currentUser) {
     toast("로그인이 필요한 페이지입니다.");
     name = "login";
   }
@@ -156,6 +518,8 @@ function showPage(name) {
   if (name === "dms") loadConversations();
   if (name === "chat") loadChatMessages();
   if (name === "cabbage-board") loadCabbageRanking();
+  if (name === "profile") loadProfilePage();
+  if (name === "search") loadSearchResults();
   window.scrollTo(0, 0);
 }
 
@@ -164,11 +528,11 @@ function showPage(name) {
 // ------------------------------------------------------------
 
 function renderPostRow(post, isHot) {
-  const badges = `${post.is_notice ? `<span class="tag-notice">공지</span>` : ""}${isHot ? `<span class="tag-hot">개념</span>` : ""}`;
+  const badges = `${post.is_notice ? `<span class="tag-notice">📌 공지</span>` : ""}${isHot ? `<span class="tag-hot">개념</span>` : ""}`;
   return `
     <button class="post-row-line${post.is_notice ? " is-notice" : ""}" data-post-id="${post.id}" type="button">
       <span class="col-title">${badges}${escapeHtml(post.title)}</span>
-      <span class="col-author">${escapeHtml(post.author_nickname)}</span>
+      <span class="col-author author-link" data-user-id="${post.author_id}">${escapeHtml(post.author_nickname)} ${cabbageBadge(post.author_id)}</span>
       <span class="col-stat">👀 ${post.view_count || 0}</span>
       <span class="col-stat">🥬 ${post.cabbage_count}</span>
       <span class="col-stat">💬 ${post.comment_count}</span>
@@ -194,6 +558,8 @@ async function loadPosts() {
     return;
   }
 
+  await ensureCabbageTotals(posts.map((p) => p.author_id));
+
   const notices = posts.filter((p) => p.is_notice);
   const normal = posts.filter((p) => !p.is_notice);
   const topIds = new Set(
@@ -210,6 +576,35 @@ async function loadPosts() {
   ].join("");
 }
 
+function buildCommentTree(comments) {
+  const topLevel = comments.filter((c) => !c.parent_id);
+  const repliesByParent = {};
+  comments.filter((c) => c.parent_id).forEach((c) => {
+    (repliesByParent[c.parent_id] ||= []).push(c);
+  });
+  return { topLevel, repliesByParent };
+}
+
+function renderCommentNode(comment, repliesByParent) {
+  const replies = repliesByParent[comment.id] || [];
+  return `
+    <div class="comment" data-comment-id="${comment.id}">
+      <strong ${authorLinkAttrs(comment.author_id)}>${escapeHtml(comment.author_nickname)}</strong> ${cabbageBadge(comment.author_id)}
+      <span class="meta"> · ${time(comment.created_at)}</span>
+      <p>${escapeHtml(comment.content)}</p>
+      <button class="reply-toggle-btn" data-comment-id="${comment.id}" type="button">답글</button>
+      <div class="reply-form-slot" id="reply-form-${comment.id}"></div>
+      ${replies.length ? `<div class="reply-list">${replies.map((r) => `
+        <div class="comment reply" data-comment-id="${r.id}">
+          <strong ${authorLinkAttrs(r.author_id)}>${escapeHtml(r.author_nickname)}</strong> ${cabbageBadge(r.author_id)}
+          <span class="meta"> · ${time(r.created_at)}</span>
+          <p>${escapeHtml(r.content)}</p>
+        </div>
+      `).join("")}</div>` : ""}
+    </div>
+  `;
+}
+
 async function loadDetail() {
   if (!selectedPostId) return;
 
@@ -223,21 +618,23 @@ async function loadDetail() {
   const ownPost = currentUser && post.author_id === currentUser.id;
   const dmBtnHtml = (!ownPost && currentUser) ? `<button class="text-button" id="btn-open-dm" type="button" style="font-size:12px; margin-left:8px;">✉ 쪽지 보내기</button>` : "";
 
+  await ensureCabbageTotals([post.author_id]);
+
   const postDetail = $("#post-detail");
   if (!postDetail) return;
 
-  const badges = `${post.is_notice ? `<span class="tag-notice">공지</span>` : ""}`;
+  const badges = `${post.is_notice ? `<span class="tag-notice">📌 공지</span>` : ""}`;
 
   postDetail.innerHTML = `
     <span class="badge">${post.board_type}</span>
     <h1>${badges}${escapeHtml(post.title)}</h1>
-    <div class="meta">${escapeHtml(post.author_nickname)}${dmBtnHtml} · 👀 조회 ${post.view_count || 0} · ${time(post.created_at)}</div>
+    <div class="meta"><span ${authorLinkAttrs(post.author_id)}>${escapeHtml(post.author_nickname)} ${cabbageBadge(post.author_id)}</span>${dmBtnHtml} · 👀 조회 ${post.view_count || 0} · ${time(post.created_at)}</div>
     <div class="detail-content">${escapeHtml(post.content)}</div>
     <div class="actions">
       <button class="cabbage" id="cabbage-button" type="button">${myCabbage ? "🥬 배추 추천 취소" : "🥬 배추 주기"} ${post.cabbage_count}</button>
       <span class="action-right">
         ${!ownPost ? `<button class="report-btn" id="report-post-button" type="button">🚩 신고</button>` : ""}
-        ${isAdmin ? `<button class="notice-toggle-btn" id="notice-toggle-button" type="button">${post.is_notice ? "공지 해제" : "공지로 등록"}</button>` : ""}
+        ${isAdmin ? `<button class="notice-toggle-btn" id="notice-toggle-button" type="button">${post.is_notice ? "고정 해제" : "📌 상단 고정"}</button>` : ""}
         ${ownPost ? `<button class="danger" id="own-delete" type="button">글 삭제</button>` : ""}
       </span>
     </div>
@@ -268,24 +665,40 @@ async function loadDetail() {
     justCabbagedPostId = null;
   }
 
-  const { data: comments, error: commentError } = await supabase.from("school_community_comments").select("*").eq("post_id", post.id).order("created_at");
+  const { data: comments, error: commentError } = await supabase
+    .from("school_community_comments")
+    .select("*")
+    .eq("post_id", post.id)
+    .order("created_at");
   if (commentError) return toast(`댓글을 불러오지 못했습니다: ${commentError.message}`);
 
+  await ensureCabbageTotals((comments || []).map((c) => c.author_id));
+
   $("#comment-count").textContent = comments.length;
-  $("#comment-list").innerHTML = comments.length ? comments.map((comment) => `
-    <div class="comment">
-      <strong>${escapeHtml(comment.author_nickname)}</strong>
-      <span class="meta"> · ${time(comment.created_at)}</span>
-      <p>${escapeHtml(comment.content)}</p>
-    </div>
-  `).join("") : `<div class="comment" style="color:var(--muted); font-size:14px;">작성된 첫 댓글이 없습니다.</div>`;
+  const { topLevel, repliesByParent } = buildCommentTree(comments || []);
+  $("#comment-list").innerHTML = topLevel.length
+    ? topLevel.map((c) => renderCommentNode(c, repliesByParent)).join("")
+    : `<div class="comment" style="color:var(--muted); font-size:14px;">작성된 첫 댓글이 없습니다.</div>`;
 }
 
 async function toggleNotice(postId, current) {
   const { error } = await supabase.from("school_community_posts").update({ is_notice: !current }).eq("id", postId);
   if (error) return toast(`공지 설정 실패: ${error.message}`);
-  toast(!current ? "공지로 등록되었습니다." : "공지가 해제되었습니다.");
-  loadDetail();
+  toast(!current ? "📌 상단에 고정되었습니다." : "고정이 해제되었습니다.");
+
+  if (!current && currentUser) {
+    const { data: post } = await supabase.from("school_community_posts").select("title").eq("id", postId).maybeSingle();
+    const { data: profiles } = await supabase.from("school_community_profiles").select("id").neq("id", currentUser.id);
+    if (post && profiles) {
+      for (const p of profiles) {
+        await createNotification(p.id, "notice", `📌 새 공지: ${post.title}`, "post", postId);
+      }
+    }
+  }
+
+  if (selectedPostId === postId) loadDetail();
+  if (currentPageName === "boards") loadPosts();
+  if (adminPostSearchCache.length) renderAdminPostSearchResult();
 }
 
 // ------------------------------------------------------------
@@ -304,7 +717,6 @@ function cabbagePeriodStartDate(period) {
     d.setMonth(d.getMonth() - 1);
     return d;
   }
-  // daily: 오늘 자정부터
   const d = new Date(now);
   d.setHours(0, 0, 0, 0);
   return d;
@@ -342,7 +754,7 @@ async function loadCabbageRanking() {
 
   const { data: posts, error: postsError } = await supabase
     .from("school_community_posts")
-    .select("id,title,author_nickname,comment_count,board_type")
+    .select("id,title,author_id,author_nickname,comment_count,board_type")
     .in("id", topIds);
 
   if (postsError) {
@@ -369,6 +781,25 @@ async function loadCabbageRanking() {
       </button>
     `;
   }).join("");
+
+  // TOP5 진입 알림 (내 게시글이 새로 진입한 경우)
+  if (currentUser) {
+    for (const id of topIds) {
+      const post = posts.find((p) => p.id === id);
+      if (!post || post.author_id !== currentUser.id) continue;
+      const { data: existing } = await supabase
+        .from("school_community_notifications")
+        .select("id")
+        .eq("user_id", currentUser.id)
+        .eq("type", "top5")
+        .eq("target_id", post.id)
+        .gte("created_at", new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString())
+        .maybeSingle();
+      if (!existing) {
+        await createNotification(currentUser.id, "top5", `내 게시글이 ${periodLabel(currentCabbagePeriod)} 배추 TOP5에 진입했습니다!`, "post", post.id);
+      }
+    }
+  }
 }
 
 // ------------------------------------------------------------
@@ -392,12 +823,10 @@ function closeReportModal() {
 
 $("#report-cancel").addEventListener("click", closeReportModal);
 
-// 오버레이 배경(모달 바깥) 클릭 시에도 닫히도록 처리
 $("#report-modal").addEventListener("click", (event) => {
   if (event.target === $("#report-modal")) closeReportModal();
 });
 
-// Esc 키로도 신고 모달을 닫을 수 있도록 처리
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !$("#report-modal").hidden) closeReportModal();
 });
@@ -481,11 +910,13 @@ async function loadConversations() {
     };
   });
 
+  await ensureCabbageTotals(conversationsCache.map((c) => c.partnerId));
+
   list.innerHTML = conversationsCache.length ? conversationsCache.map((conv) => {
     const unread = unreadCounts[conv.id] || 0;
     return `
       <button class="conversation-row" data-conversation-id="${conv.id}" type="button">
-        <span class="conversation-name">${escapeHtml(conv.partnerNickname)}</span>
+        <span class="conversation-name author-link" data-user-id="${conv.partnerId}">${escapeHtml(conv.partnerNickname)} ${cabbageBadge(conv.partnerId)}</span>
         <span class="conversation-preview">${escapeHtml(conv.last_message || "대화를 시작해보세요.")}</span>
         <span class="conversation-time">${time(conv.last_message_at)}</span>
         ${unread ? `<span class="unread-badge">${unread > 99 ? "99+" : unread}</span>` : ""}
@@ -515,10 +946,11 @@ $("#dm-search-input").addEventListener("input", (event) => {
     if (error) return toast(`검색 실패: ${error.message}`);
 
     searchResultsCache = data || [];
+    await ensureCabbageTotals(searchResultsCache.map((p) => p.id));
     resultsBox.hidden = false;
     resultsBox.innerHTML = searchResultsCache.length ? searchResultsCache.map((profile) => `
       <button class="dm-search-result-row" data-user-id="${profile.id}" type="button">
-        <span>${escapeHtml(profile.nickname)}</span>
+        <span>${escapeHtml(profile.nickname)} ${cabbageBadge(profile.id)}</span>
         <span class="dm-search-start">대화 시작 →</span>
       </button>
     `).join("") : `<div class="dm-search-empty">일치하는 닉네임이 없습니다.</div>`;
@@ -534,7 +966,9 @@ document.addEventListener("click", (event) => {
 
 async function loadChatMessages() {
   if (!activeConversationId || !activeChatPartner) return showPage("dms");
-  $("#chat-partner-name").textContent = activeChatPartner.nickname;
+  await ensureCabbageTotals([activeChatPartner.id]);
+  $("#chat-partner-name").innerHTML = `${escapeHtml(activeChatPartner.nickname)} ${cabbageBadge(activeChatPartner.id)}`;
+  $("#chat-partner-name").dataset.userId = activeChatPartner.id;
 
   const messages = await fetchChatMessages();
   renderChatMessages(messages);
@@ -667,7 +1101,11 @@ $("#chat-form").addEventListener("submit", async (event) => {
     content
   });
 
-  if (error) toast(`메시지 전송 실패: ${error.message}`);
+  if (error) {
+    toast(`메시지 전송 실패: ${error.message}`);
+  } else if (activeChatPartner) {
+    createNotification(activeChatPartner.id, "dm", `${currentProfile.nickname}님이 쪽지를 보냈습니다.`, "dm", activeConversationId);
+  }
 });
 
 // ------------------------------------------------------------
@@ -765,7 +1203,17 @@ async function toggleCabbage(postId, alreadyRecommended) {
     ? await supabase.from("school_community_cabbage_recommends").delete().eq("post_id", postId).eq("user_id", currentUser.id)
     : await supabase.from("school_community_cabbage_recommends").insert({ post_id: postId, user_id: currentUser.id });
   if (result.error) return toast(`추천 연산 처리 실패: ${result.error.message}`);
-  if (!alreadyRecommended) justCabbagedPostId = postId;
+
+  if (!alreadyRecommended) {
+    justCabbagedPostId = postId;
+    const { data: post } = await supabase.from("school_community_posts").select("author_id").eq("id", postId).maybeSingle();
+    if (post) {
+      cabbageTotalCache.delete(post.author_id);
+      if (post.author_id !== currentUser.id) {
+        createNotification(post.author_id, "cabbage", `${currentProfile.nickname}님이 회원님의 글에 배추를 주었습니다.`, "post", postId);
+      }
+    }
+  }
   await loadDetail();
 }
 
@@ -806,10 +1254,13 @@ $("#logout-button").addEventListener("click", () => { supabase.auth.signOut(); }
 $("#write-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!currentUser || !currentProfile) return toast("로그인이 필요합니다.");
+  const title = $("#post-title").value.trim();
+  const content = $("#post-content").value.trim();
+  if (containsBannedWord(title) || containsBannedWord(content)) return toast("사용할 수 없는 단어가 포함되어 있습니다.");
   const { error } = await supabase.from("school_community_posts").insert({
     board_type: $("#post-board").value,
-    title: $("#post-title").value.trim(),
-    content: $("#post-content").value.trim(),
+    title,
+    content,
     author_id: currentUser.id,
     author_nickname: currentProfile.nickname
   });
@@ -823,21 +1274,107 @@ $("#write-form").addEventListener("submit", async (event) => {
 $("#comment-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!currentUser || !currentProfile) return toast("로그인이 필요합니다.");
+  const content = $("#comment-content").value.trim();
+  if (containsBannedWord(content)) return toast("사용할 수 없는 단어가 포함되어 있습니다.");
   const { error } = await supabase.from("school_community_comments").insert({
     post_id: selectedPostId,
     author_id: currentUser.id,
     author_nickname: currentProfile.nickname,
-    content: $("#comment-content").value.trim()
+    content
   });
   if (error) return toast(`댓글 등록 실패: ${error.message}`);
   $("#comment-form").reset();
   toast("댓글이 등록되었습니다.");
+
+  const { data: post } = await supabase.from("school_community_posts").select("author_id").eq("id", selectedPostId).maybeSingle();
+  if (post && post.author_id !== currentUser.id) {
+    createNotification(post.author_id, "comment", `${currentProfile.nickname}님이 회원님의 글에 댓글을 남겼습니다.`, "post", selectedPostId);
+  }
+  loadDetail();
+});
+
+// 대댓글(답글) 등록 - 동적으로 삽입되는 .reply-form 위임 처리
+document.addEventListener("submit", async (event) => {
+  const form = event.target.closest(".reply-form");
+  if (!form) return;
+  event.preventDefault();
+  if (!currentUser || !currentProfile) return toast("로그인이 필요합니다.");
+
+  const parentId = form.dataset.parentId;
+  const input = form.querySelector(".reply-input");
+  const content = input.value.trim();
+  if (!content) return;
+  if (containsBannedWord(content)) return toast("사용할 수 없는 단어가 포함되어 있습니다.");
+
+  const { error } = await supabase.from("school_community_comments").insert({
+    post_id: selectedPostId,
+    author_id: currentUser.id,
+    author_nickname: currentProfile.nickname,
+    content,
+    parent_id: parentId
+  });
+  if (error) return toast(`답글 등록 실패: ${error.message}`);
+  toast("답글이 등록되었습니다.");
+
+  const { data: parentComment } = await supabase.from("school_community_comments").select("author_id").eq("id", parentId).maybeSingle();
+  if (parentComment && parentComment.author_id !== currentUser.id) {
+    createNotification(parentComment.author_id, "reply", `${currentProfile.nickname}님이 회원님의 댓글에 답글을 남겼습니다.`, "post", selectedPostId);
+  }
   loadDetail();
 });
 
 document.addEventListener("click", (event) => {
   const page = event.target.dataset.page;
   if (page) { showPage(page); return; }
+
+  const authorLink = event.target.closest(".author-link");
+  if (authorLink && authorLink.dataset.userId) {
+    openProfile(authorLink.dataset.userId);
+    return;
+  }
+
+  const replyToggleBtn = event.target.closest(".reply-toggle-btn");
+  if (replyToggleBtn) {
+    const commentId = replyToggleBtn.dataset.commentId;
+    const slot = document.getElementById(`reply-form-${commentId}`);
+    if (!slot) return;
+    if (slot.innerHTML.trim()) { slot.innerHTML = ""; return; }
+    if (!currentUser) return toast("로그인이 필요합니다.");
+    slot.innerHTML = `
+      <form class="reply-form" data-parent-id="${commentId}">
+        <input class="reply-input" placeholder="답글을 입력하세요" required maxlength="500">
+        <button type="submit">등록</button>
+      </form>
+    `;
+    return;
+  }
+
+  const notifRow = event.target.closest(".notification-row");
+  if (notifRow) {
+    const id = notifRow.dataset.notificationId;
+    const targetType = notifRow.dataset.targetType;
+    const targetId = notifRow.dataset.targetId;
+    markNotificationRead(id);
+    $("#notification-panel").hidden = true;
+    if (targetType === "post" && targetId) { selectedPostId = targetId; showPage("detail"); }
+    else if (targetType === "dm" && targetId) { openConversationById(targetId); }
+    return;
+  }
+
+  const profileTabBtn = event.target.closest("#profile-tabs button");
+  if (profileTabBtn) {
+    profileActiveTab = profileTabBtn.dataset.profileTab;
+    document.querySelectorAll("#profile-tabs button").forEach((b) => b.classList.toggle("active", b === profileTabBtn));
+    renderProfileTabContent();
+    return;
+  }
+
+  const profileListRow = event.target.closest(".profile-list-row");
+  if (profileListRow && profileListRow.dataset.postId) {
+    selectedPostId = profileListRow.dataset.postId;
+    showPage("detail");
+    return;
+  }
 
   const roleTabBtn = event.target.closest(".role-tab-btn");
   if (roleTabBtn) {
@@ -929,6 +1466,9 @@ function switchAdminTab(tabName) {
   document.querySelectorAll(".admin-tab-panel").forEach((panel) => {
     panel.hidden = panel.id !== `admin-tab-${tabName}`;
   });
+  if (tabName === "words") {
+    loadBannedWords().then(renderAdminWordList);
+  }
 }
 
 $("#admin-close").addEventListener("click", () => { $("#admin-panel").hidden = true; });
@@ -1012,7 +1552,7 @@ async function deleteReportedTarget(reportId) {
 }
 
 // ------------------------------------------------------------
-// 관리자: 계정 관리 (학번/실명 검색 → 정지·권한·삭제·배추 초기화)
+// 관리자: 계정 관리 (학번/실명 검색 → 정지·권한·삭제·배추 초기화·강제 로그아웃)
 // ------------------------------------------------------------
 
 $("#admin-account-search-form").addEventListener("submit", async (event) => {
@@ -1054,15 +1594,18 @@ async function renderAdminAccountResult() {
       <div class="admin-account-actions">
         <button id="admin-toggle-ban" type="button">${profile.is_banned ? "정지 해제" : "계정 정지"}</button>
         <button id="admin-toggle-role" type="button">${profile.role === "admin" ? "관리자 권한 해제" : "관리자 권한 부여"}</button>
+        <button id="admin-force-logout" type="button">강제 로그아웃</button>
       </div>
 
       <h4>작성 게시글 (${(posts || []).length})</h4>
       <div class="admin-account-list">
         ${(posts || []).map((p) => `
           <div class="admin-account-row">
-            <span>${escapeHtml(p.title)} (🥬 ${p.cabbage_count})</span>
+            <span>${escapeHtml(p.title)}</span>
             <span class="admin-account-row-btns">
-              <button class="admin-reset-cabbage" data-post-id="${p.id}" type="button">배추 초기화</button>
+              <input type="number" min="0" class="admin-cabbage-input" data-post-id="${p.id}" value="${p.cabbage_count}">
+              <button class="admin-set-cabbage" data-post-id="${p.id}" type="button">설정</button>
+              <button class="admin-reset-cabbage" data-post-id="${p.id}" type="button">초기화</button>
               <button class="admin-delete-post-inline" data-post-id="${p.id}" type="button">삭제</button>
             </span>
           </div>
@@ -1100,6 +1643,26 @@ async function renderAdminAccountResult() {
     renderAdminAccountResult();
   });
 
+  $("#admin-force-logout").addEventListener("click", async () => {
+    if (!confirm("이 사용자를 강제 로그아웃 처리하시겠습니까?")) return;
+    const { error } = await supabase.from("school_community_profiles").update({ force_logout_at: new Date().toISOString() }).eq("id", profile.id);
+    if (error) return toast(`강제 로그아웃 처리 실패: ${error.message}`);
+    toast("강제 로그아웃이 요청되었습니다. (해당 사용자 접속 시 자동 로그아웃됩니다)");
+  });
+
+  document.querySelectorAll(".admin-set-cabbage").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const postId = btn.dataset.postId;
+      const input = document.querySelector(`.admin-cabbage-input[data-post-id="${postId}"]`);
+      const value = Math.max(0, parseInt(input.value, 10) || 0);
+      const { error } = await supabase.from("school_community_posts").update({ cabbage_count: value }).eq("id", postId);
+      if (error) return toast(`배추 개수 설정 실패: ${error.message}`);
+      toast("배추 개수가 수정되었습니다.");
+      cabbageTotalCache.delete(profile.id);
+      renderAdminAccountResult();
+    });
+  });
+
   document.querySelectorAll(".admin-reset-cabbage").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const postId = btn.dataset.postId;
@@ -1108,6 +1671,7 @@ async function renderAdminAccountResult() {
       const { error: updateError } = await supabase.from("school_community_posts").update({ cabbage_count: 0 }).eq("id", postId);
       if (updateError) return toast(`배추 초기화 실패: ${updateError.message}`);
       toast("배추 추천이 초기화되었습니다.");
+      cabbageTotalCache.delete(profile.id);
       renderAdminAccountResult();
     });
   });
@@ -1129,6 +1693,109 @@ async function renderAdminAccountResult() {
       if (error) return toast(`삭제 실패: ${error.message}`);
       toast("댓글이 삭제되었습니다.");
       renderAdminAccountResult();
+    });
+  });
+}
+
+// ------------------------------------------------------------
+// 관리자: 게시글 관리 (제목 검색 → 수정/삭제/고정)
+// ------------------------------------------------------------
+
+$("#admin-post-search-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const query = $("#admin-post-search-input").value.trim();
+  if (!query) return;
+  const { data, error } = await supabase
+    .from("school_community_posts")
+    .select("*")
+    .ilike("title", `%${query}%`)
+    .order("created_at", { ascending: false })
+    .limit(30);
+  if (error) return toast(`검색 실패: ${error.message}`);
+  adminPostSearchCache = data || [];
+  renderAdminPostSearchResult();
+});
+
+function renderAdminPostSearchResult() {
+  const box = $("#admin-post-search-result");
+  if (!box) return;
+  box.innerHTML = adminPostSearchCache.length ? adminPostSearchCache.map((p) => `
+    <div class="admin-post-edit-card" data-post-id="${p.id}">
+      <div class="admin-account-sub">${escapeHtml(p.board_type)} · ${escapeHtml(p.author_nickname)} · ${p.is_notice ? "📌 공지" : "일반"}</div>
+      <input class="admin-post-edit-title" type="text" value="${escapeHtml(p.title)}" maxlength="60">
+      <textarea class="admin-post-edit-content" maxlength="1500">${escapeHtml(p.content)}</textarea>
+      <div class="admin-account-row-btns">
+        <button class="admin-post-save" data-post-id="${p.id}" type="button">수정 저장</button>
+        <button class="admin-post-pin-toggle" data-post-id="${p.id}" data-current="${p.is_notice}" type="button">${p.is_notice ? "고정 해제" : "📌 상단 고정"}</button>
+        <button class="admin-post-delete" data-post-id="${p.id}" type="button">삭제</button>
+      </div>
+    </div>
+  `).join("") : `<div class="admin-empty">검색 결과가 없습니다.</div>`;
+
+  document.querySelectorAll(".admin-post-save").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const card = btn.closest(".admin-post-edit-card");
+      const title = card.querySelector(".admin-post-edit-title").value.trim();
+      const content = card.querySelector(".admin-post-edit-content").value.trim();
+      if (containsBannedWord(title) || containsBannedWord(content)) return toast("사용할 수 없는 단어가 포함되어 있습니다.");
+      const { error } = await supabase.from("school_community_posts").update({ title, content }).eq("id", btn.dataset.postId);
+      if (error) return toast(`수정 실패: ${error.message}`);
+      toast("게시글이 수정되었습니다.");
+      if (selectedPostId === btn.dataset.postId) loadDetail();
+      if (currentPageName === "boards") loadPosts();
+    });
+  });
+  document.querySelectorAll(".admin-post-pin-toggle").forEach((btn) => {
+    btn.addEventListener("click", () => toggleNotice(btn.dataset.postId, btn.dataset.current === "true"));
+  });
+  document.querySelectorAll(".admin-post-delete").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("이 게시글을 삭제하시겠습니까?")) return;
+      const { error } = await supabase.from("school_community_posts").delete().eq("id", btn.dataset.postId);
+      if (error) return toast(`삭제 실패: ${error.message}`);
+      toast("게시글이 삭제되었습니다.");
+      adminPostSearchCache = adminPostSearchCache.filter((p) => p.id !== btn.dataset.postId);
+      renderAdminPostSearchResult();
+      if (selectedPostId === btn.dataset.postId) showPage("boards");
+    });
+  });
+}
+
+// ------------------------------------------------------------
+// 관리자: 금칙어 관리
+// ------------------------------------------------------------
+
+$("#admin-word-add-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const word = $("#admin-word-input").value.trim();
+  if (!word) return;
+  const { error } = await supabase.from("school_community_banned_words").insert({ word });
+  if (error) return toast(`금칙어 추가 실패: ${error.message}`);
+  toast("금칙어가 추가되었습니다.");
+  $("#admin-word-add-form").reset();
+  await loadBannedWords();
+  renderAdminWordList();
+});
+
+function renderAdminWordList() {
+  const box = $("#admin-word-list");
+  if (!box) return;
+  box.innerHTML = bannedWordsCache.length ? bannedWordsCache.map((w) => `
+    <div class="admin-account-row">
+      <span>${escapeHtml(w.word)}</span>
+      <span class="admin-account-row-btns">
+        <button class="admin-word-delete" data-word-id="${w.id}" type="button">삭제</button>
+      </span>
+    </div>
+  `).join("") : `<div class="admin-empty">등록된 금칙어가 없습니다.</div>`;
+
+  document.querySelectorAll(".admin-word-delete").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const { error } = await supabase.from("school_community_banned_words").delete().eq("id", btn.dataset.wordId);
+      if (error) return toast(`삭제 실패: ${error.message}`);
+      toast("금칙어가 삭제되었습니다.");
+      await loadBannedWords();
+      renderAdminWordList();
     });
   });
 }
@@ -1180,16 +1847,25 @@ async function setSession(session) {
     }
     await refreshMyConversationIds();
     subscribeGlobalDmBadge();
+    subscribeForceLogout();
+    await loadNotifications();
+    subscribeNotifications();
   } else {
     currentProfile = null;
     isAdmin = false;
     myConversationIds = new Set();
+    notificationsCache = [];
     unsubscribeGlobalDmBadge();
+    unsubscribeForceLogout();
+    unsubscribeNotifications();
     setDmBadge(false);
+    updateNotificationBadge();
   }
   updateHeader();
   showPage(currentUser ? "boards" : "home");
 }
+
+await loadBannedWords();
 
 const { data: { session } } = await supabase.auth.getSession();
 await setSession(session);

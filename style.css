@@ -34,7 +34,7 @@
 }
 
 /* ==========================================================================
-   1. 글로벌 기본 스타일 및 레이아웃 (기본 구조 유지)
+   1. 글로벌 기본 스타일 및 레이아웃
    ========================================================================== */
 * {
   box-sizing: border-box;
@@ -65,6 +65,8 @@ body {
   background-color: var(--header-bg);
   border-bottom: 1px solid var(--border);
   transition: background-color 0.2s ease, border-color 0.2s ease;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .header .brand {
   font-size: 18px;
@@ -74,8 +76,14 @@ body {
   cursor: pointer;
   color: var(--text);
 }
+.header nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
 .header nav button {
-  margin-left: 8px;
+  margin-left: 4px;
   padding: 6px 12px;
   border-radius: 4px;
   border: 1px solid var(--border);
@@ -83,6 +91,7 @@ body {
   color: var(--text);
   cursor: pointer;
   transition: background-color 0.15s ease, transform 0.1s ease;
+  position: relative;
 }
 .header nav button:hover {
   background: var(--hover-bg);
@@ -91,9 +100,6 @@ body {
   background: var(--primary);
   color: var(--primary-text);
   border-color: var(--primary);
-}
-.header nav button.has-unread {
-  position: relative;
 }
 .header nav button.has-unread::after {
   content: "";
@@ -106,6 +112,34 @@ body {
   background: #ef4444;
 }
 
+.nav-search-form {
+  display: flex;
+}
+.nav-search-form input {
+  padding: 6px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 13px;
+  width: 140px;
+}
+
+.nav-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 1px 5px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1.4;
+}
+
 /* 페이지 전환 기본 구조 */
 .page {
   display: none;
@@ -114,7 +148,7 @@ body {
   display: block;
 }
 
-/* 기본 폼 카드 및 버튼 (로그인/회원가입/글쓰기용 유지) */
+/* 기본 폼 카드 및 버튼 */
 .form-card {
   background: var(--card-bg);
   padding: 24px;
@@ -211,15 +245,9 @@ body {
   margin: 8px 0;
   color: var(--text);
 }
-.hero span {
-  color: var(--muted);
-}
-.hero p {
-  color: var(--muted);
-}
-.hero b {
-  font-size: 48px;
-}
+.hero span { color: var(--muted); }
+.hero p { color: var(--muted); }
+.hero b { font-size: 48px; }
 .notice {
   background: #eef2ff;
   padding: 16px;
@@ -255,26 +283,19 @@ body {
   font-weight: bold;
 }
 
-
 /* ==========================================================================
-   2. 이야기 게시판 핵심 UI (에브리타임 / 디시인사이드 스타일 한 줄 개편)
+   2. 이야기 게시판 핵심 UI
    ========================================================================== */
-
-/* 상단 타이틀 및 탭 메뉴 */
 .title-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
-.title-row h1 {
-  font-size: 24px;
-  color: var(--text);
-}
-.title-row p {
-  font-size: 14px;
-  color: var(--muted);
-}
+.title-row h1 { font-size: 24px; color: var(--text); }
+.title-row p { font-size: 14px; color: var(--muted); }
 .title-row button.primary {
   padding: 10px 20px;
   background: var(--primary);
@@ -285,15 +306,9 @@ body {
   cursor: pointer;
   transition: filter 0.15s ease;
 }
-.title-row button.primary:hover {
-  filter: brightness(1.05);
-}
+.title-row button.primary:hover { filter: brightness(1.05); }
 
-.tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
+.tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
 .tabs button {
   padding: 8px 16px;
   background: var(--hover-bg);
@@ -304,17 +319,9 @@ body {
   color: var(--text);
   transition: background-color 0.15s ease;
 }
-.tabs button.active {
-  background: #333;
-  color: white;
-  font-weight: bold;
-}
-[data-theme="dark"] .tabs button.active {
-  background: var(--primary);
-  color: var(--primary-text);
-}
+.tabs button.active { background: #333; color: white; font-weight: bold; }
+[data-theme="dark"] .tabs button.active { background: var(--primary); color: var(--primary-text); }
 
-/* [헤더] 게시판 공통 상단 테이블 헤더 */
 .post-table-head {
   display: grid !important;
   grid-template-columns: 1fr 90px 70px 70px 70px 90px !important;
@@ -331,8 +338,7 @@ body {
   border-radius: 0 !important;
 }
 
-/* [목록] 게시글 동적 출력 메인 컨테이너 */
-#post-list {
+.board-post-list {
   display: flex !important;
   flex-direction: column !important;
   background-color: var(--card-bg);
@@ -341,27 +347,24 @@ body {
   border-radius: 0 !important;
 }
 
-/* [게시글 한 줄 Row] main.js가 출력하는 버튼 컴포넌트 */
-#post-list .post-row-line {
-  /* 4. 버튼 기본 스타일 완전 제거 */
+.board-post-list .post-row-line {
   appearance: none !important;
   -webkit-appearance: none !important;
   background: none !important;
   background-color: var(--card-bg) !important;
   outline: none !important;
   border: none !important;
-  border-bottom: 1px solid var(--border-soft) !important; /* 각 글 사이 1px border-bottom */
-  
+  border-bottom: 1px solid var(--border-soft) !important;
   display: grid !important;
   grid-template-columns: 1fr 90px 70px 70px 70px 90px !important;
   align-items: center !important;
   width: 100% !important;
-  height: 48px !important;      /* 46~50px 높이 준수 */
+  height: 48px !important;
   min-height: 48px !important;
   max-height: 48px !important;
   padding: 0 12px !important;
-  border-radius: 0 !important;   /* border-radius 제거 */
-  box-shadow: none !important;   /* box-shadow 제거 */
+  border-radius: 0 !important;
+  box-shadow: none !important;
   cursor: pointer !important;
   text-decoration: none !important;
   font-family: inherit !important;
@@ -369,20 +372,17 @@ body {
   transition: background-color 0.1s ease;
 }
 
-/* 마우스 Hover 시 배경색만 연하게 변경 */
-#post-list .post-row-line:hover {
+.board-post-list .post-row-line:hover {
   background-color: var(--hover-bg) !important;
 }
 
-/* 안전한 본문 숨김 방식 (상세페이지 타격 없이 목록 내부의 본문 엘리먼트만 가림) */
-#post-list .post-content,
-#post-list .card-body,
-#post-list .content {
+.board-post-list .post-content,
+.board-post-list .card-body,
+.board-post-list .content {
   display: none !important;
 }
 
-/* 3. 빈 게시판 행 개선 (.empty) */
-#post-list .post-row-line.empty {
+.board-post-list .post-row-line.empty {
   display: flex !important;
   justify-content: center !important;
   align-items: center !important;
@@ -390,33 +390,29 @@ body {
   min-height: 48px !important;
   max-height: 48px !important;
   cursor: default !important;
-  pointer-events: none !important; /* 클릭 불가 효과 강제 */
+  pointer-events: none !important;
   color: var(--muted) !important;
   background-color: var(--card-bg) !important;
   border-bottom: 1px solid var(--border-soft) !important;
 }
-#post-list .post-row-line.empty:hover {
-  background-color: var(--card-bg) !important; /* 빈 행은 hover 효과 무시 */
+.board-post-list .post-row-line.empty:hover {
+  background-color: var(--card-bg) !important;
 }
 
-/* 🟢 내부 Column 데이터 정렬 및 텍스트 제어 설정 */
-
-/* 1. 제목 영역 (말줄임 완벽 적용 구조) */
-#post-list .post-row-line .col-title,
+.board-post-list .post-row-line .col-title,
 .post-table-head .col-title {
   display: flex !important;
-  align-items: center !important; /* 2. 배지 정렬용 수평 가운데 정렬 */
+  align-items: center !important;
   text-align: left !important;
   font-size: 14px !important;
   color: var(--text) !important;
   padding-right: 10px;
   overflow: hidden !important;
-  min-width: 0 !important; /* Flexbox 구조 내 말줄임 강제 활성화 */
+  min-width: 0 !important;
   width: 100% !important;
 }
 
-/* 내부 span이나 a 태그 등 어떤 인라인 요소가 들어와도 유연하게 말줄임 처리되도록 상속 지정 */
-#post-list .post-row-line .col-title *,
+.board-post-list .post-row-line .col-title *,
 .post-table-head .col-title * {
   white-space: nowrap !important;
   overflow: hidden !important;
@@ -424,48 +420,45 @@ body {
   min-width: 0 !important;
 }
 
-/* 헤더 제목 스타일 매칭 */
 .post-table-head .col-title {
   font-weight: bold !important;
   color: var(--muted) !important;
   display: block !important;
 }
 
-/* 2. 공지 / 개념글 뱃지 스타일 및 정렬 방식 고도화 */
-#post-list .tag-notice {
+.board-post-list .tag-notice {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  background-color: #fef9c3 !important; /* 연한 노란색 */
-  color: #713f12 !important;            /* 갈색 */
+  background-color: #fef9c3 !important;
+  color: #713f12 !important;
   padding: 2px 6px !important;
   border-radius: 4px !important;
   font-size: 11px !important;
   font-weight: 700 !important;
-  margin-right: 6px !important;          /* 제목과 6px 간격 */
-  flex-shrink: 0 !important;             /* 줄바꿈 방지 */
+  margin-right: 6px !important;
+  flex-shrink: 0 !important;
   height: 20px !important;
   line-height: 1 !important;
 }
 
-#post-list .tag-hot {
+.board-post-list .tag-hot {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  background-color: #dcfce7 !important;  /* 연한 초록색 */
-  color: #15803d !important;            /* 초록색 */
+  background-color: #dcfce7 !important;
+  color: #15803d !important;
   padding: 2px 6px !important;
   border-radius: 4px !important;
   font-size: 11px !important;
   font-weight: 700 !important;
-  margin-right: 6px !important;          /* 제목과 6px 간격 */
-  flex-shrink: 0 !important;             /* 줄바꿈 방지 */
+  margin-right: 6px !important;
+  flex-shrink: 0 !important;
   height: 20px !important;
   line-height: 1 !important;
 }
 
-/* 2. 작성자 영역 (가운데 정렬) */
-#post-list .post-row-line .col-author,
+.board-post-list .post-row-line .col-author,
 .post-table-head .col-author {
   text-align: center !important;
   font-size: 13px !important;
@@ -475,22 +468,19 @@ body {
   text-overflow: ellipsis !important;
 }
 
-/* 3. 수치값 영역들 - 조회, 배추, 댓글 (가운데 정렬) */
-#post-list .post-row-line .col-stat,
+.board-post-list .post-row-line .col-stat,
 .post-table-head .col-stat {
   text-align: center !important;
   font-size: 13px !important;
   color: var(--muted) !important;
 }
 
-/* 댓글수 숫자에 컬러 포인트 강조 */
-#post-list .post-row-line .col-stat:last-of-type {
+.board-post-list .post-row-line .col-stat:last-of-type {
   font-weight: 600;
-  color: var(--primary) !important; 
+  color: var(--primary) !important;
 }
 
-/* 4. 시간 영역 (가운데 정렬) */
-#post-list .post-row-line .col-time,
+.board-post-list .post-row-line .col-time,
 .post-table-head .col-time {
   text-align: center !important;
   font-size: 12px !important;
@@ -498,12 +488,27 @@ body {
   white-space: nowrap !important;
 }
 
+/* 🥬 미니 배추 뱃지 (닉네임 옆) */
+.mini-cabbage {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--table-head-bg);
+  padding: 1px 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.author-link {
+  cursor: pointer;
+}
+.author-link:hover {
+  text-decoration: underline;
+}
 
 /* ==========================================================================
    3. 게시판 이외의 기능별 UI
    ========================================================================== */
-
-/* 상세 페이지 (상세뷰 내부에서는 리스트 공용 스타일 영향 차단) */
 .detail-card {
   background: var(--card-bg);
   padding: 24px;
@@ -512,20 +517,9 @@ body {
   margin-top: 16px;
   box-shadow: var(--shadow);
 }
-.detail-card h1 {
-  color: var(--text);
-}
-.detail-card .meta {
-  color: var(--muted);
-  font-size: 13px;
-  margin: 8px 0;
-}
-.detail-card .detail-content {
-  margin: 16px 0;
-  white-space: pre-wrap;
-  color: var(--text);
-  line-height: 1.7;
-}
+.detail-card h1 { color: var(--text); }
+.detail-card .meta { color: var(--muted); font-size: 13px; margin: 8px 0; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.detail-card .detail-content { margin: 16px 0; white-space: pre-wrap; color: var(--text); line-height: 1.7; }
 .detail-card .badge {
   display: inline-block;
   background: var(--table-head-bg);
@@ -542,11 +536,7 @@ body {
   flex-wrap: wrap;
   gap: 8px;
 }
-.detail-card .action-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+.detail-card .action-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .detail-card button.cabbage {
   padding: 8px 16px;
   border-radius: 20px;
@@ -557,12 +547,8 @@ body {
   font-weight: 600;
   transition: transform 0.15s ease, background-color 0.15s ease;
 }
-.detail-card button.cabbage:hover {
-  background: var(--table-head-bg);
-}
-.detail-card button.cabbage.cabbage-pop {
-  animation: cabbagePop 0.45s ease;
-}
+.detail-card button.cabbage:hover { background: var(--table-head-bg); }
+.detail-card button.cabbage.cabbage-pop { animation: cabbagePop 0.45s ease; }
 @keyframes cabbagePop {
   0% { transform: scale(1); }
   35% { transform: scale(1.18) rotate(-4deg); }
@@ -580,18 +566,10 @@ body {
   cursor: pointer;
   font-size: 13px;
 }
-.detail-card button.danger {
-  color: #ef4444;
-  border-color: #ef4444;
-}
+.detail-card button.danger { color: #ef4444; border-color: #ef4444; }
 
-.comments {
-  margin-top: 24px;
-}
-.comments h2 {
-  color: var(--text);
-  margin-bottom: 12px;
-}
+.comments { margin-top: 24px; }
+.comments h2 { color: var(--text); margin-bottom: 12px; }
 .comment {
   background: var(--card-bg);
   border: 1px solid var(--border-soft);
@@ -599,22 +577,56 @@ body {
   padding: 12px;
   margin-bottom: 8px;
 }
-.comment strong {
-  color: var(--text);
-}
-.comment .meta {
-  color: var(--muted);
+.comment strong { color: var(--text); }
+.comment .meta { color: var(--muted); font-size: 12px; }
+.comment p { margin-top: 6px; color: var(--text); }
+.comment .reply-toggle-btn {
+  margin-top: 8px;
+  background: none;
+  border: none;
+  color: var(--primary);
   font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
 }
-.comment p {
-  margin-top: 6px;
-  color: var(--text);
-}
-.comment-form {
+.reply-list {
+  margin-top: 10px;
+  padding-left: 18px;
+  border-left: 2px solid var(--border-soft);
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  margin-top: 12px;
 }
+.comment.reply {
+  background: var(--hover-bg);
+  margin-bottom: 0;
+}
+.reply-form-slot:not(:empty) { margin-top: 8px; }
+.reply-form {
+  display: flex;
+  gap: 6px;
+}
+.reply-form input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 13px;
+}
+.reply-form button {
+  padding: 8px 12px;
+  background: var(--primary);
+  color: var(--primary-text);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.comment-form { display: flex; gap: 8px; margin-top: 12px; }
 .comment-form input {
   flex: 1;
   padding: 10px;
@@ -631,10 +643,7 @@ body {
   border-radius: 4px;
   cursor: pointer;
 }
-[data-theme="dark"] .comment-form button {
-  background: var(--primary);
-  color: var(--primary-text);
-}
+[data-theme="dark"] .comment-form button { background: var(--primary); color: var(--primary-text); }
 
 /* ==========================================================================
    3-1. 🥬 배추 게시판 / 랭킹 UI
@@ -648,13 +657,7 @@ body {
   color: var(--muted);
   font-size: 14px;
 }
-
-#cabbage-rank-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
+#cabbage-rank-list { display: flex; flex-direction: column; gap: 10px; }
 .cabbage-rank-row {
   display: flex;
   align-items: center;
@@ -669,77 +672,95 @@ body {
   box-shadow: var(--shadow);
   transition: transform 0.12s ease, background-color 0.12s ease;
 }
-.cabbage-rank-row:hover {
-  background: var(--hover-bg);
-  transform: translateY(-1px);
-}
-.cabbage-rank-row.rank-1 {
-  border-color: #f5c518;
-  background: linear-gradient(0deg, var(--card-bg), var(--card-bg)), linear-gradient(90deg, rgba(245,197,24,0.12), transparent);
-}
-.cabbage-rank-row.rank-2 {
-  border-color: #c0c6d1;
-}
-.cabbage-rank-row.rank-3 {
-  border-color: #d7a06b;
-}
-
-.cabbage-rank-medal {
-  font-size: 22px;
-  min-width: 40px;
-  text-align: center;
-  flex-shrink: 0;
-}
+.cabbage-rank-row:hover { background: var(--hover-bg); transform: translateY(-1px); }
+.cabbage-rank-row.rank-1 { border-color: #f5c518; background: linear-gradient(0deg, var(--card-bg), var(--card-bg)), linear-gradient(90deg, rgba(245,197,24,0.12), transparent); }
+.cabbage-rank-row.rank-2 { border-color: #c0c6d1; }
+.cabbage-rank-row.rank-3 { border-color: #d7a06b; }
+.cabbage-rank-medal { font-size: 22px; min-width: 40px; text-align: center; flex-shrink: 0; }
 .cabbage-rank-row.rank-1 .cabbage-rank-medal,
 .cabbage-rank-row.rank-2 .cabbage-rank-medal,
-.cabbage-rank-row.rank-3 .cabbage-rank-medal {
-  font-size: 28px;
-}
+.cabbage-rank-row.rank-3 .cabbage-rank-medal { font-size: 28px; }
+.cabbage-rank-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.cabbage-rank-title { font-size: 15px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cabbage-rank-author { font-size: 12px; color: var(--muted); }
+.cabbage-rank-stats { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+.cabbage-rank-count { font-size: 13px; font-weight: 700; color: var(--primary); white-space: nowrap; }
+.cabbage-rank-comments { font-size: 12px; color: var(--muted); white-space: nowrap; }
 
-.cabbage-rank-info {
+/* ==========================================================================
+   3-2. 👤 프로필 페이지
+   ========================================================================== */
+.profile-header-card {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
+  gap: 20px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  flex-wrap: wrap;
 }
-.cabbage-rank-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text);
-  white-space: nowrap;
+.profile-avatar-wrap {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
   overflow: hidden;
-  text-overflow: ellipsis;
-}
-.cabbage-rank-author {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.cabbage-rank-stats {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
+  background: var(--table-head-bg);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
 }
-.cabbage-rank-count {
+.profile-avatar-wrap.no-avatar::after { content: "🙂"; }
+.profile-avatar { width: 100%; height: 100%; object-fit: cover; }
+.profile-avatar-wrap.no-avatar .profile-avatar { display: none; }
+.profile-header-info { flex: 1; min-width: 200px; }
+.profile-nickname-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.profile-header-info h1 { font-size: 22px; color: var(--text); }
+.profile-nickname-edit { display: flex; gap: 6px; margin-top: 8px; }
+.profile-nickname-edit input {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--input-bg);
+  color: var(--text);
+}
+.profile-nickname-edit button {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--primary);
+  color: var(--primary-text);
+  cursor: pointer;
   font-size: 13px;
-  font-weight: 700;
-  color: var(--primary);
-  white-space: nowrap;
 }
-.cabbage-rank-comments {
-  font-size: 12px;
-  color: var(--muted);
-  white-space: nowrap;
+.profile-edit-buttons { display: flex; gap: 10px; margin-top: 6px; }
+.profile-meta-row { display: flex; gap: 12px; margin-top: 10px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.profile-stats-row { display: flex; gap: 16px; margin-top: 10px; font-size: 13px; color: var(--text); flex-wrap: wrap; }
+.profile-stats-row strong { color: var(--primary); }
+#profile-dm-button { margin-top: 12px; padding: 8px 18px; border-radius: 6px; border: none; }
+
+.profile-list-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  text-align: left;
+  gap: 10px;
 }
+.profile-list-row:hover { background: var(--hover-bg); }
+.profile-list-title { font-size: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.profile-list-meta { font-size: 12px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
 
 /* DM (쪽지함) 및 채팅 인터페이스 - 인스타그램 DM 스타일 */
-.dm-search-box {
-  position: relative;
-  margin-bottom: 16px;
-}
+.dm-search-box { position: relative; margin-bottom: 16px; }
 .dm-search-box input {
   width: 100%;
   padding: 12px 14px;
@@ -773,25 +794,11 @@ body {
   color: var(--text);
   font-size: 14px;
 }
-.dm-search-result-row:hover {
-  background: var(--hover-bg);
-}
-.dm-search-start {
-  font-size: 12px;
-  color: var(--primary);
-}
-.dm-search-empty {
-  padding: 16px;
-  text-align: center;
-  color: var(--muted);
-  font-size: 13px;
-}
+.dm-search-result-row:hover { background: var(--hover-bg); }
+.dm-search-start { font-size: 12px; color: var(--primary); }
+.dm-search-empty { padding: 16px; text-align: center; color: var(--muted); font-size: 13px; }
 
-#dm-conversation-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
+#dm-conversation-list { display: flex; flex-direction: column; gap: 4px; }
 .conversation-row {
   position: relative;
   display: flex;
@@ -806,14 +813,8 @@ body {
   text-align: left;
   transition: background-color 0.12s ease;
 }
-.conversation-row:hover {
-  background: var(--hover-bg);
-}
-.conversation-name {
-  font-weight: 700;
-  font-size: 14px;
-  color: var(--text);
-}
+.conversation-row:hover { background: var(--hover-bg); }
+.conversation-name { font-weight: 700; font-size: 14px; color: var(--text); }
 .conversation-preview {
   font-size: 13px;
   color: var(--muted);
@@ -823,13 +824,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.conversation-time {
-  position: absolute;
-  top: 14px;
-  right: 16px;
-  font-size: 11px;
-  color: var(--muted);
-}
+.conversation-time { position: absolute; top: 14px; right: 16px; font-size: 11px; color: var(--muted); }
 .unread-badge {
   position: absolute;
   bottom: 14px;
@@ -842,23 +837,9 @@ body {
   border-radius: 999px;
 }
 
-.chat-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.chat-header h2 {
-  color: var(--text);
-  font-size: 17px;
-}
-.chat-back {
-  font-size: 20px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text);
-}
+.chat-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.chat-header h2 { color: var(--text); font-size: 17px; }
+.chat-back { font-size: 20px; background: none; border: none; cursor: pointer; color: var(--text); }
 
 #chat-messages {
   height: 60vh;
@@ -874,18 +855,8 @@ body {
   flex-direction: column;
   gap: 4px;
 }
-
-.chat-empty {
-  margin: auto;
-  color: var(--muted);
-  font-size: 14px;
-}
-
-.chat-date-divider {
-  display: flex;
-  justify-content: center;
-  margin: 14px 0 10px;
-}
+.chat-empty { margin: auto; color: var(--muted); font-size: 14px; }
+.chat-date-divider { display: flex; justify-content: center; margin: 14px 0 10px; }
 .chat-date-divider span {
   background: var(--table-head-bg);
   color: var(--muted);
@@ -894,7 +865,6 @@ body {
   border-radius: 999px;
 }
 
-/* 인스타그램 DM 스타일 말풍선 */
 .chat-bubble-row {
   display: flex;
   align-items: flex-end;
@@ -903,22 +873,9 @@ body {
   margin: 3px 0;
   position: relative;
 }
-.chat-bubble-row.theirs {
-  align-self: flex-start;
-  flex-direction: row;
-}
-.chat-bubble-row.mine {
-  align-self: flex-end;
-  flex-direction: row-reverse;
-}
-
-.chat-bubble {
-  padding: 10px 14px;
-  font-size: 14px;
-  line-height: 1.45;
-  word-break: break-word;
-  box-shadow: var(--shadow);
-}
+.chat-bubble-row.theirs { align-self: flex-start; flex-direction: row; }
+.chat-bubble-row.mine { align-self: flex-end; flex-direction: row-reverse; }
+.chat-bubble { padding: 10px 14px; font-size: 14px; line-height: 1.45; word-break: break-word; box-shadow: var(--shadow); }
 .chat-bubble-row.theirs .chat-bubble {
   background: var(--card-bg);
   color: var(--text);
@@ -930,16 +887,8 @@ body {
   color: var(--primary-text);
   border-radius: 18px 18px 4px 18px;
 }
-
-.chat-bubble-time {
-  font-size: 10px;
-  color: var(--muted);
-  white-space: nowrap;
-  margin-bottom: 2px;
-}
-
-.chat-report-btn,
-.chat-delete-btn {
+.chat-bubble-time { font-size: 10px; color: var(--muted); white-space: nowrap; margin-bottom: 2px; }
+.chat-report-btn, .chat-delete-btn {
   background: none;
   border: none;
   cursor: pointer;
@@ -949,19 +898,10 @@ body {
   align-self: center;
 }
 .chat-bubble-row:hover .chat-report-btn,
-.chat-bubble-row:hover .chat-delete-btn {
-  opacity: 0.7;
-}
-.chat-report-btn:hover,
-.chat-delete-btn:hover {
-  opacity: 1;
-}
+.chat-bubble-row:hover .chat-delete-btn { opacity: 0.7; }
+.chat-report-btn:hover, .chat-delete-btn:hover { opacity: 1; }
 
-#chat-form {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-}
+#chat-form { display: flex; gap: 8px; align-items: flex-end; }
 #chat-input {
   flex: 1;
   padding: 10px 14px;
@@ -987,34 +927,56 @@ body {
 /* 모달 오버레이 */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
   background: rgba(0,0,0,0.5);
   align-items: center;
   justify-content: center;
   z-index: 100;
-  display: none; /* 기본은 숨긴 상태 */
+  display: none;
 }
-
-/* hidden 속성이 없는 경우만 flex로 표시 */
-.modal-overlay:not([hidden]) {
-  display: flex;
-}
-
-.modal-content {
-  animation: modalIn 0.15s ease;
-}
+.modal-overlay:not([hidden]) { display: flex; }
+.modal-content { animation: modalIn 0.15s ease; }
 @keyframes modalIn {
   from { opacity: 0; transform: translateY(8px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
+[hidden] { display: none !important; }
 
-/* 모든 요소 공통 hidden 처리 */
-[hidden] {
-  display: none !important;
+/* 🔔 알림 패널 */
+.notification-panel {
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 340px;
+  max-width: 90vw;
+  height: 100%;
+  background: var(--card-bg);
+  border-left: 1px solid var(--border);
+  padding: 20px;
+  z-index: 95;
+  overflow-y: auto;
+  color: var(--text);
 }
+.notification-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.notification-head button { background: none; border: none; color: var(--text); font-size: 18px; cursor: pointer; }
+.notification-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--hover-bg);
+  cursor: pointer;
+  text-align: left;
+  margin-bottom: 8px;
+}
+.notification-row.unread { border-color: var(--primary); background: var(--table-head-bg); }
+.notification-message { font-size: 13px; color: var(--text); }
+.notification-time { font-size: 11px; color: var(--muted); }
+.notification-empty { text-align: center; color: var(--muted); font-size: 13px; padding: 20px 0; }
 
 /* 관리자 패널 */
 .admin-panel {
@@ -1030,45 +992,23 @@ body {
   overflow-y: auto;
   color: var(--text);
 }
-.admin-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.admin-head button {
-  background: none;
-  border: none;
-  color: var(--text);
-  font-size: 18px;
-  cursor: pointer;
-}
-.admin-panel .hint {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 4px;
-}
-.admin-tabs {
-  display: flex;
-  gap: 4px;
-  margin: 12px 0;
-}
+.admin-head { display: flex; justify-content: space-between; align-items: center; }
+.admin-head button { background: none; border: none; color: var(--text); font-size: 18px; cursor: pointer; }
+.admin-panel .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.admin-tabs { display: flex; gap: 4px; margin: 12px 0; flex-wrap: wrap; }
 .admin-tab-btn {
   flex: 1;
+  min-width: 70px;
   padding: 6px;
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   background: var(--hover-bg);
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 4px;
 }
-.admin-tab-btn.active {
-  background: var(--primary);
-  color: var(--primary-text);
-  border-color: var(--primary);
-}
-.admin-report-card,
-.admin-account-card {
+.admin-tab-btn.active { background: var(--primary); color: var(--primary-text); border-color: var(--primary); }
+.admin-report-card, .admin-account-card, .admin-post-edit-card {
   background: var(--hover-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1076,20 +1016,9 @@ body {
   margin-bottom: 10px;
   font-size: 13px;
 }
-.admin-report-head {
-  display: flex;
-  justify-content: space-between;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-.admin-report-actions {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
-  flex-wrap: wrap;
-}
-.admin-report-actions button,
-.admin-account-actions button {
+.admin-report-head { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 4px; }
+.admin-report-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.admin-report-actions button, .admin-account-actions button {
   padding: 6px 10px;
   font-size: 12px;
   border-radius: 4px;
@@ -1098,17 +1027,8 @@ body {
   color: var(--text);
   cursor: pointer;
 }
-.admin-account-actions {
-  display: flex;
-  gap: 6px;
-  margin: 8px 0;
-}
-.admin-account-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 6px;
-}
+.admin-account-actions { display: flex; gap: 6px; margin: 8px 0; flex-wrap: wrap; }
+.admin-account-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
 .admin-account-row {
   display: flex;
   justify-content: space-between;
@@ -1118,12 +1038,9 @@ body {
   padding: 6px 8px;
   background: var(--card-bg);
   border-radius: 4px;
+  flex-wrap: wrap;
 }
-.admin-account-row-btns {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
+.admin-account-row-btns { display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap; }
 .admin-account-row-btns button {
   padding: 3px 8px;
   font-size: 11px;
@@ -1133,33 +1050,32 @@ body {
   color: var(--text);
   cursor: pointer;
 }
-.admin-empty {
-  text-align: center;
-  color: var(--muted);
-  font-size: 13px;
-  padding: 12px 0;
+.admin-cabbage-input {
+  width: 56px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 11px;
 }
-.admin-account-sub {
-  font-size: 12px;
-  color: var(--muted);
-}
-#admin-tab-accounts form,
-#admin-tab-legacy form {
+.admin-empty { text-align: center; color: var(--muted); font-size: 13px; padding: 12px 0; }
+.admin-account-sub { font-size: 12px; color: var(--muted); }
+#admin-tab-accounts form, #admin-tab-legacy form, #admin-tab-posts form, #admin-tab-words form {
   display: flex;
   flex-direction: column;
   gap: 6px;
   margin-bottom: 12px;
 }
-#admin-tab-accounts input,
-#admin-tab-legacy input {
+#admin-tab-accounts input, #admin-tab-legacy input, #admin-tab-posts input, #admin-tab-words input {
   padding: 8px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--input-bg);
   color: var(--text);
 }
-#admin-tab-accounts button[type="submit"],
-#admin-tab-legacy button[type="submit"] {
+#admin-tab-accounts button[type="submit"], #admin-tab-legacy button[type="submit"],
+#admin-tab-posts button[type="submit"], #admin-tab-words button[type="submit"] {
   padding: 8px;
   background: var(--primary);
   color: var(--primary-text);
@@ -1167,6 +1083,17 @@ body {
   border-radius: 4px;
   cursor: pointer;
 }
+.admin-post-edit-card input, .admin-post-edit-card textarea {
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card-bg);
+  color: var(--text);
+  font-size: 12px;
+}
+.admin-post-edit-card textarea { height: 80px; resize: vertical; }
 
 /* 토스트 알림 및 공통 푸터 */
 .toast {
@@ -1184,77 +1111,42 @@ body {
   pointer-events: none;
   z-index: 1000;
 }
-.toast.show {
-  opacity: 1;
-}
-footer {
-  text-align: center;
-  color: var(--muted);
-  font-size: 12px;
-  margin-top: 40px;
-  padding: 20px 0;
-}
-
+.toast.show { opacity: 1; }
+footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 40px; padding: 20px 0; }
 
 /* ==========================================================================
    4. 반응형 모바일 최적화 레이아웃 (768px 이하)
    ========================================================================== */
 @media (max-width: 768px) {
-  /* 상단 헤더 균형 압축 (제목, 작성자, 시간 칸만 생성) */
-  .post-table-head {
-    grid-template-columns: 1fr 80px 80px !important;
-    padding: 0 8px;
-  }
-
-  /* 게시글 본체 모바일 압축 (조회수/배추/댓글 숨김 스펙 적용) */
-  #post-list .post-row-line {
+  .post-table-head { grid-template-columns: 1fr 80px 80px !important; padding: 0 8px; }
+  .board-post-list .post-row-line {
     grid-template-columns: 1fr 80px 80px !important;
     height: 46px !important;
     min-height: 46px !important;
     max-height: 46px !important;
     padding: 0 8px !important;
   }
-
-  /* 모바일 스펙: 조회수, 배추수, 댓글수 수치 통째로 제거 */
   .post-table-head .col-stat,
-  #post-list .post-row-line .col-stat {
-    display: none !important;
-  }
+  .board-post-list .post-row-line .col-stat { display: none !important; }
+  .board-post-list .post-row-line .col-title { font-size: 13px !important; }
+  .board-post-list .post-row-line .col-author { font-size: 12px !important; }
+  .board-post-list .post-row-line .col-time { font-size: 11px !important; }
 
-  /* 모바일 가독성을 위한 텍스트 세부 조정 */
-  #post-list .post-row-line .col-title {
-    font-size: 13px !important;
-  }
-  #post-list .post-row-line .col-author {
-    font-size: 12px !important;
-  }
-  #post-list .post-row-line .col-time {
-    font-size: 11px !important;
-  }
+  .chat-bubble-row { max-width: 88%; }
+  #chat-messages { height: 55vh; }
 
-  /* 채팅 말풍선 모바일 최적화 */
-  .chat-bubble-row {
-    max-width: 88%;
-  }
-  #chat-messages {
-    height: 55vh;
-  }
+  .cabbage-rank-row { padding: 12px; gap: 10px; }
+  .cabbage-rank-title { font-size: 14px; }
+  .cabbage-rank-stats { align-items: flex-end; }
 
-  /* 배추 랭킹 모바일 최적화 */
-  .cabbage-rank-row {
-    padding: 12px;
-    gap: 10px;
-  }
-  .cabbage-rank-title {
-    font-size: 14px;
-  }
-  .cabbage-rank-stats {
-    align-items: flex-end;
-  }
+  .header nav { display: flex; flex-wrap: wrap; justify-content: flex-end; }
+  .nav-search-form input { width: 100px; }
 
-  .header nav {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
+  .profile-header-card { flex-direction: column; align-items: center; text-align: center; }
+  .profile-nickname-row { justify-content: center; }
+  .profile-meta-row, .profile-stats-row { justify-content: center; }
+
+  .notification-panel, .admin-panel { width: 100%; max-width: 100vw; }
+
+  .reply-list { padding-left: 10px; }
 }
