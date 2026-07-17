@@ -1,3 +1,14 @@
+/*
+========================================================================
+[4차 업데이트 반영 사항]
+- 읽은 게시글 표시: localStorage 기반 (DB 미사용)
+- 비공개 게시글: posts.is_private 컬럼 사용 (schema.sql 참고)
+- 게시판 개편: 통합 / 1학년 / 2학년 / 3학년 (profiles.grade 컬럼 사용)
+- 학사일정: mock 데이터 + API 연동 가능 구조 (ACADEMIC_API_URL만 채우면 됨)
+이 파일이 정상 동작하려면 schema.sql을 함께 반영해야 합니다.
+========================================================================
+*/
+
 const SUPABASE_URL = "https://nsnpmnjmbzecpvswcnlc.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_XVPVmjOt_6mgbTTS-8m4SA_h9YEg4d0";
 
@@ -5,7 +16,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 const $ = (selector) => document.querySelector(selector);
 
-let currentUser = null, currentProfile = null, currentBoard = "고민", selectedPostId = null, isAdmin = false;
+let currentUser = null, currentProfile = null, currentBoard = "통합", selectedPostId = null, isAdmin = false;
 let activeConversationId = null, activeChatPartner = null, chatRealtimeChannel = null, dmSearchDebounce = null;
 let currentPageName = "home";
 let conversationsCache = [], searchResultsCache = [], chatMessagesCache = [];
@@ -29,6 +40,9 @@ let lastSearchQuery = "";
 let adminPostSearchCache = [];
 let forceLogoutChannel = null;
 let sessionStartedAt = null;
+
+// 4차 업데이트 상태 변수
+let currentDetailPost = null; // 현재 상세페이지에 로드된 게시글(권한 체크용)
 
 const studentEmail = (studentId) => `student-${studentId.trim()}@school-community.invalid`;
 const teacherEmail = (name, birth) => `teacher-${name.trim().replace(/\s+/g, "")}-${birth.replace(/-/g, "")}@school-community.invalid`;
@@ -120,6 +134,135 @@ function switchRoleTab(area, role) {
     $("#signup-form").hidden = role !== "student";
     $("#teacher-signup-form").hidden = role !== "teacher";
   }
+}
+
+// ------------------------------------------------------------
+// 📖 읽은 게시글 표시 (localStorage 전용, DB 미사용)
+// ------------------------------------------------------------
+
+const READ_POSTS_KEY = "school_community_read_posts";
+
+function getReadPostSet() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(READ_POSTS_KEY) || "[]"));
+  } catch {
+    return new Set();
+  }
+}
+
+function isPostRead(postId) {
+  return getReadPostSet().has(postId);
+}
+
+function markPostRead(postId) {
+  const set = getReadPostSet();
+  if (set.has(postId)) return;
+  set.add(postId);
+  const arr = [...set].slice(-500); // 용량 보호용 상한
+  try { localStorage.setItem(READ_POSTS_KEY, JSON.stringify(arr)); } catch { /* 저장 공간 부족 등은 무시 */ }
+}
+
+// ------------------------------------------------------------
+// 🔒 비공개 게시글 권한 판별 (게시판/검색/랭킹/프로필 공통 사용)
+// ------------------------------------------------------------
+
+function canViewPrivateContent(post) {
+  if (!post || !post.is_private) return true;
+  if (isAdmin) return true;
+  return !!(currentUser && post.author_id === currentUser.id);
+}
+
+// ------------------------------------------------------------
+// 🏫 게시판 개편 (통합 / 1학년 / 2학년 / 3학년)
+// ------------------------------------------------------------
+
+const ALL_BOARD_TABS = ["통합", "1학년", "2학년", "3학년"];
+const WRITABLE_BOARDS = ["1학년", "2학년", "3학년"];
+
+function permittedViewBoards() {
+  if (isAdmin) return ALL_BOARD_TABS;
+  if (currentProfile?.grade) return ["통합", `${currentProfile.grade}학년`];
+  return ["통합"];
+}
+
+function renderBoardTabs() {
+  const container = $("#board-tabs");
+  if (!container) return;
+  const boards = permittedViewBoards();
+  if (!boards.includes(currentBoard)) currentBoard = boards[0];
+  container.innerHTML = boards.map((b) => `<button class="${b === currentBoard ? "active" : ""}" data-board="${b}" type="button">${b}</button>`).join("");
+}
+
+function populateWriteBoardOptions() {
+  const select = $("#post-board");
+  if (!select) return;
+  let options;
+  if (isAdmin || currentProfile?.role === "teacher") {
+    options = WRITABLE_BOARDS;
+  } else if (currentProfile?.grade) {
+    options = [`${currentProfile.grade}학년`];
+  } else {
+    options = WRITABLE_BOARDS;
+  }
+  select.innerHTML = options.map((b) => `<option value="${b}">${b}</option>`).join("");
+}
+
+// ------------------------------------------------------------
+// 📅 학사일정 (mock 데이터, API 연동 가능 구조)
+// ------------------------------------------------------------
+
+const MOCK_ACADEMIC_EVENTS = [
+  { date: "2026-07-17", title: "여름방학식" },
+  { date: "2026-07-21", title: "방과후학교 신청 마감" },
+  { date: "2026-07-28", title: "1학기 성적 열람 시작" },
+  { date: "2026-08-05", title: "교사 연수" },
+  { date: "2026-08-18", title: "2학기 개학" },
+  { date: "2026-09-02", title: "전국연합학력평가" }
+];
+
+// TODO: 학교 학사일정 API가 준비되면 아래 URL만 채워주세요.
+// 기대 응답 형식: [{ "date": "YYYY-MM-DD", "title": "일정명" }, ...]
+const ACADEMIC_API_URL = null;
+
+async function fetchAcademicEvents() {
+  if (!ACADEMIC_API_URL) return MOCK_ACADEMIC_EVENTS;
+  try {
+    const res = await fetch(ACADEMIC_API_URL);
+    if (!res.ok) throw new Error("API 응답 오류");
+    return await res.json();
+  } catch (err) {
+    toast("학사일정 API 연동에 실패하여 임시 데이터를 표시합니다.");
+    return MOCK_ACADEMIC_EVENTS;
+  }
+}
+
+function renderCalendarSection(containerId, title, events, emptyText) {
+  const box = $(containerId);
+  if (!box) return;
+  box.innerHTML = `
+    <h2 class="calendar-section-title">${title}</h2>
+    ${events.length ? events.map((e) => `
+      <div class="calendar-event-row">
+        <span class="calendar-event-date">${escapeHtml(e.date)}</span>
+        <span class="calendar-event-title">${escapeHtml(e.title)}</span>
+      </div>
+    `).join("") : `<div class="admin-empty">${emptyText}</div>`}
+  `;
+}
+
+async function loadCalendarPage() {
+  const events = (await fetchAcademicEvents()).slice().sort((a, b) => a.date.localeCompare(b.date));
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const weekLater = new Date(todayStr);
+  weekLater.setDate(weekLater.getDate() + 7);
+
+  const todayEvents = events.filter((e) => e.date === todayStr);
+  const weekEvents = events.filter((e) => e.date > todayStr && new Date(e.date) <= weekLater);
+  const upcomingEvents = events.filter((e) => new Date(e.date) > weekLater);
+
+  renderCalendarSection("#calendar-today", "☀️ 오늘 일정", todayEvents, "오늘은 등록된 일정이 없습니다.");
+  renderCalendarSection("#calendar-week", "📅 이번 주 일정", weekEvents, "이번 주 예정된 일정이 없습니다.");
+  renderCalendarSection("#calendar-upcoming", "🔭 다가오는 일정", upcomingEvents, "다가오는 일정이 없습니다.");
 }
 
 // ------------------------------------------------------------
@@ -310,7 +453,7 @@ async function loadProfilePage() {
 
   const { data: posts } = await supabase
     .from("school_community_posts")
-    .select("id,title,board_type,cabbage_count,comment_count,created_at")
+    .select("id,title,board_type,cabbage_count,comment_count,created_at,is_private,author_id")
     .eq("author_id", viewedProfileUserId)
     .order("created_at", { ascending: false });
 
@@ -341,16 +484,23 @@ async function loadProfilePage() {
   };
 }
 
+function profilePostRowHtml(p) {
+  const locked = p.is_private && !canViewPrivateContent(p);
+  return `
+    <button class="profile-list-row" data-post-id="${p.id}" type="button">
+      <span class="profile-list-title">${locked ? "🔒 비공개 게시글입니다." : escapeHtml(p.title)}</span>
+      <span class="profile-list-meta">${locked ? "" : `🥬 ${p.cabbage_count || 0} · 💬 ${p.comment_count || 0} · `}${shortTime(p.created_at)}</span>
+    </button>
+  `;
+}
+
 function renderProfileTabContent() {
   const box = $("#profile-tab-content");
   if (!box) return;
   if (profileActiveTab === "posts") {
-    box.innerHTML = profileCache.posts.length ? profileCache.posts.map((p) => `
-      <button class="profile-list-row" data-post-id="${p.id}" type="button">
-        <span class="profile-list-title">${escapeHtml(p.title)}</span>
-        <span class="profile-list-meta">🥬 ${p.cabbage_count || 0} · 💬 ${p.comment_count || 0} · ${shortTime(p.created_at)}</span>
-      </button>
-    `).join("") : `<div class="admin-empty">작성한 게시글이 없습니다.</div>`;
+    box.innerHTML = profileCache.posts.length
+      ? profileCache.posts.map(profilePostRowHtml).join("")
+      : `<div class="admin-empty">작성한 게시글이 없습니다.</div>`;
   } else if (profileActiveTab === "comments") {
     box.innerHTML = profileCache.comments.length ? profileCache.comments.map((c) => `
       <button class="profile-list-row" data-post-id="${c.post_id}" type="button">
@@ -360,12 +510,7 @@ function renderProfileTabContent() {
     `).join("") : `<div class="admin-empty">작성한 댓글이 없습니다.</div>`;
   } else {
     const topPosts = [...profileCache.posts].sort((a, b) => (b.cabbage_count || 0) - (a.cabbage_count || 0)).slice(0, 5);
-    box.innerHTML = topPosts.length ? topPosts.map((p) => `
-      <button class="profile-list-row" data-post-id="${p.id}" type="button">
-        <span class="profile-list-title">${escapeHtml(p.title)}</span>
-        <span class="profile-list-meta">🥬 배추 ${p.cabbage_count || 0}개</span>
-      </button>
-    `).join("") : `<div class="admin-empty">받은 배추가 있는 게시글이 없습니다.</div>`;
+    box.innerHTML = topPosts.length ? topPosts.map(profilePostRowHtml).join("") : `<div class="admin-empty">받은 배추가 있는 게시글이 없습니다.</div>`;
   }
 }
 
@@ -497,8 +642,10 @@ function unsubscribeForceLogout() {
 // 페이지 라우팅
 // ------------------------------------------------------------
 
+const LOGIN_REQUIRED_PAGES = ["boards", "write", "detail", "dms", "chat", "profile", "search"];
+
 function showPage(name) {
-  if (["boards", "write", "detail", "dms", "chat", "profile", "search"].includes(name) && !currentUser) {
+  if (LOGIN_REQUIRED_PAGES.includes(name) && !currentUser) {
     toast("로그인이 필요한 페이지입니다.");
     name = "login";
   }
@@ -514,24 +661,30 @@ function showPage(name) {
   if (targetPage) targetPage.classList.add("active");
 
   if (name === "boards") loadPosts();
+  if (name === "write") populateWriteBoardOptions();
   if (name === "detail") loadDetail();
   if (name === "dms") loadConversations();
   if (name === "chat") loadChatMessages();
   if (name === "cabbage-board") loadCabbageRanking();
+  if (name === "calendar") loadCalendarPage();
   if (name === "profile") loadProfilePage();
   if (name === "search") loadSearchResults();
   window.scrollTo(0, 0);
 }
 
 // ------------------------------------------------------------
-// 게시판 (디시인사이드 스타일 한 줄 리스트 + 공지/개념글)
+// 게시판 (디시인사이드 스타일 한 줄 리스트 + 공지/개념글/비공개/읽음 표시)
 // ------------------------------------------------------------
 
 function renderPostRow(post, isHot) {
-  const badges = `${post.is_notice ? `<span class="tag-notice">📌 공지</span>` : ""}${isHot ? `<span class="tag-hot">개념</span>` : ""}`;
+  const locked = post.is_private && !canViewPrivateContent(post);
+  const read = !locked && isPostRead(post.id);
+  const titleHtml = locked ? "🔒 비공개 게시글입니다." : escapeHtml(post.title);
+  const privateBadge = post.is_private ? `<span class="tag-private">🔒 비공개</span>` : "";
+  const badges = `${post.is_notice ? `<span class="tag-notice">📌 공지</span>` : ""}${privateBadge}${(isHot && !locked) ? `<span class="tag-hot">개념</span>` : ""}`;
   return `
-    <button class="post-row-line${post.is_notice ? " is-notice" : ""}" data-post-id="${post.id}" type="button">
-      <span class="col-title">${badges}${escapeHtml(post.title)}</span>
+    <button class="post-row-line${post.is_notice ? " is-notice" : ""}${read ? " is-read" : ""}${locked ? " is-locked" : ""}" data-post-id="${post.id}" type="button">
+      <span class="col-title">${badges}${titleHtml}</span>
       <span class="col-author author-link" data-user-id="${post.author_id}">${escapeHtml(post.author_nickname)} ${cabbageBadge(post.author_id)}</span>
       <span class="col-stat">👀 ${post.view_count || 0}</span>
       <span class="col-stat">🥬 ${post.cabbage_count}</span>
@@ -542,11 +695,9 @@ function renderPostRow(post, isHot) {
 }
 
 async function loadPosts() {
-  const { data: posts, error } = await supabase
-    .from("school_community_posts")
-    .select("*")
-    .eq("board_type", currentBoard)
-    .order("created_at", { ascending: false });
+  let query = supabase.from("school_community_posts").select("*");
+  if (currentBoard !== "통합") query = query.eq("board_type", currentBoard);
+  const { data: posts, error } = await query.order("created_at", { ascending: false });
 
   if (error) return toast(`글 목록 수신 실패: ${error.message}`);
 
@@ -564,7 +715,7 @@ async function loadPosts() {
   const normal = posts.filter((p) => !p.is_notice);
   const topIds = new Set(
     [...normal]
-      .filter((p) => p.cabbage_count > 0)
+      .filter((p) => p.cabbage_count > 0 && !(p.is_private && !canViewPrivateContent(p)))
       .sort((a, b) => b.cabbage_count - a.cabbage_count)
       .slice(0, 5)
       .map((p) => p.id)
@@ -614,16 +765,37 @@ async function loadDetail() {
   const { data: post, error } = await supabase.from("school_community_posts").select("*").eq("id", selectedPostId).single();
   if (error) { toast("게시글을 찾을 수 없거나 이미 삭제 처리되었습니다."); return showPage("boards"); }
 
+  currentDetailPost = post;
+  const locked = post.is_private && !canViewPrivateContent(post);
+
+  const postDetail = $("#post-detail");
+  if (!postDetail) return;
+
+  if (locked) {
+    postDetail.innerHTML = `
+      <span class="badge">${escapeHtml(post.board_type)}</span>
+      <div class="locked-post-card">
+        <div class="locked-icon">🔒</div>
+        <p>비공개 게시글입니다.</p>
+        <span class="meta-muted">작성자와 관리자만 열람할 수 있습니다.</span>
+      </div>
+    `;
+    $("#comment-count").textContent = "0";
+    $("#comment-list").innerHTML = "";
+    $("#comment-form").hidden = true;
+    return;
+  }
+
+  $("#comment-form").hidden = false;
+  markPostRead(post.id);
+
   const { data: myCabbage } = await supabase.from("school_community_cabbage_recommends").select("post_id").eq("post_id", post.id).maybeSingle();
   const ownPost = currentUser && post.author_id === currentUser.id;
   const dmBtnHtml = (!ownPost && currentUser) ? `<button class="text-button" id="btn-open-dm" type="button" style="font-size:12px; margin-left:8px;">✉ 쪽지 보내기</button>` : "";
 
   await ensureCabbageTotals([post.author_id]);
 
-  const postDetail = $("#post-detail");
-  if (!postDetail) return;
-
-  const badges = `${post.is_notice ? `<span class="tag-notice">📌 공지</span>` : ""}`;
+  const badges = `${post.is_notice ? `<span class="tag-notice">📌 공지</span>` : ""}${post.is_private ? `<span class="tag-private">🔒 비공개</span>` : ""}`;
 
   postDetail.innerHTML = `
     <span class="badge">${post.board_type}</span>
@@ -754,7 +926,7 @@ async function loadCabbageRanking() {
 
   const { data: posts, error: postsError } = await supabase
     .from("school_community_posts")
-    .select("id,title,author_id,author_nickname,comment_count,board_type")
+    .select("id,title,author_id,author_nickname,comment_count,board_type,is_private")
     .in("id", topIds);
 
   if (postsError) {
@@ -767,11 +939,12 @@ async function loadCabbageRanking() {
   list.innerHTML = topIds.map((id, idx) => {
     const post = posts.find((p) => p.id === id);
     if (!post) return "";
+    const locked = post.is_private && !canViewPrivateContent(post);
     return `
       <button class="cabbage-rank-row rank-${idx + 1}" data-post-id="${post.id}" type="button">
         <span class="cabbage-rank-medal">${medals[idx]}</span>
         <span class="cabbage-rank-info">
-          <span class="cabbage-rank-title">${escapeHtml(post.title)}</span>
+          <span class="cabbage-rank-title">${locked ? "🔒 비공개 게시글입니다." : escapeHtml(post.title)}</span>
           <span class="cabbage-rank-author">${escapeHtml(post.author_nickname)}</span>
         </span>
         <span class="cabbage-rank-stats">
@@ -1149,11 +1322,12 @@ $("#signup-form").addEventListener("submit", async (event) => {
       nickname,
       role: "student",
       student_id: studentId,
-      name
+      name,
+      grade: parseInt(grade, 10)
     }, { onConflict: "id" });
 
     currentUser = data.user;
-    currentProfile = { id: data.user.id, nickname, role: "student" };
+    currentProfile = { id: data.user.id, nickname, role: "student", grade: parseInt(grade, 10) };
     updateHeader();
   }
   toast("회원가입이 완료되었습니다!");
@@ -1256,16 +1430,19 @@ $("#write-form").addEventListener("submit", async (event) => {
   if (!currentUser || !currentProfile) return toast("로그인이 필요합니다.");
   const title = $("#post-title").value.trim();
   const content = $("#post-content").value.trim();
+  const boardType = $("#post-board").value;
+  const isPrivate = $("#post-private").checked;
   if (containsBannedWord(title) || containsBannedWord(content)) return toast("사용할 수 없는 단어가 포함되어 있습니다.");
   const { error } = await supabase.from("school_community_posts").insert({
-    board_type: $("#post-board").value,
+    board_type: boardType,
     title,
     content,
     author_id: currentUser.id,
-    author_nickname: currentProfile.nickname
+    author_nickname: currentProfile.nickname,
+    is_private: isPrivate
   });
   if (error) return toast(`글 등록 실패: ${error.message}`);
-  currentBoard = $("#post-board").value;
+  currentBoard = boardType === "1학년" || boardType === "2학년" || boardType === "3학년" ? boardType : currentBoard;
   $("#write-form").reset();
   toast("이야기가 등록되었습니다.");
   showPage("boards");
@@ -1274,6 +1451,9 @@ $("#write-form").addEventListener("submit", async (event) => {
 $("#comment-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!currentUser || !currentProfile) return toast("로그인이 필요합니다.");
+  if (currentDetailPost?.is_private && !canViewPrivateContent(currentDetailPost)) {
+    return toast("비공개 게시글에는 댓글을 작성할 수 없습니다.");
+  }
   const content = $("#comment-content").value.trim();
   if (containsBannedWord(content)) return toast("사용할 수 없는 단어가 포함되어 있습니다.");
   const { error } = await supabase.from("school_community_comments").insert({
@@ -1299,6 +1479,9 @@ document.addEventListener("submit", async (event) => {
   if (!form) return;
   event.preventDefault();
   if (!currentUser || !currentProfile) return toast("로그인이 필요합니다.");
+  if (currentDetailPost?.is_private && !canViewPrivateContent(currentDetailPost)) {
+    return toast("비공개 게시글에는 답글을 작성할 수 없습니다.");
+  }
 
   const parentId = form.dataset.parentId;
   const input = form.querySelector(".reply-input");
@@ -1721,7 +1904,7 @@ function renderAdminPostSearchResult() {
   if (!box) return;
   box.innerHTML = adminPostSearchCache.length ? adminPostSearchCache.map((p) => `
     <div class="admin-post-edit-card" data-post-id="${p.id}">
-      <div class="admin-account-sub">${escapeHtml(p.board_type)} · ${escapeHtml(p.author_nickname)} · ${p.is_notice ? "📌 공지" : "일반"}</div>
+      <div class="admin-account-sub">${escapeHtml(p.board_type)} · ${escapeHtml(p.author_nickname)} · ${p.is_notice ? "📌 공지" : "일반"}${p.is_private ? " · 🔒 비공개" : ""}</div>
       <input class="admin-post-edit-title" type="text" value="${escapeHtml(p.title)}" maxlength="60">
       <textarea class="admin-post-edit-content" maxlength="1500">${escapeHtml(p.content)}</textarea>
       <div class="admin-account-row-btns">
@@ -1830,7 +2013,7 @@ async function setSession(session) {
   currentUser = session?.user || null;
 
   if (currentUser) {
-    const { data, error } = await supabase.from("school_community_profiles").select("id,nickname,role,is_banned").eq("id", currentUser.id).maybeSingle();
+    const { data, error } = await supabase.from("school_community_profiles").select("id,nickname,role,is_banned,grade").eq("id", currentUser.id).maybeSingle();
     if (error) {
       toast("인증 동기화 실패");
       await supabase.auth.signOut();
@@ -1845,6 +2028,7 @@ async function setSession(session) {
       currentProfile = data;
       isAdmin = data.role === "admin";
     }
+    renderBoardTabs();
     await refreshMyConversationIds();
     subscribeGlobalDmBadge();
     subscribeForceLogout();
@@ -1853,6 +2037,7 @@ async function setSession(session) {
   } else {
     currentProfile = null;
     isAdmin = false;
+    currentBoard = "통합";
     myConversationIds = new Set();
     notificationsCache = [];
     unsubscribeGlobalDmBadge();

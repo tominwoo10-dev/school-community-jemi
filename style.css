@@ -16,8 +16,9 @@
   --hover-bg: #f2f4f7;
   --table-head-bg: #f3f5f8;
   --danger: #ef4444;
+  --lock-bg: #f3f0ff;
+  --lock-color: #6d28d9;
 
-  /* 통일 규격 */
   --radius-lg: 14px;
   --radius-md: 10px;
   --radius-sm: 8px;
@@ -58,6 +59,8 @@
   --hover-bg: #23272f;
   --table-head-bg: #1b1e25;
   --danger: #f36969;
+  --lock-bg: #241f38;
+  --lock-color: #c4b5fd;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.38);
@@ -322,6 +325,27 @@ body {
 }
 .text-button:hover { color: var(--text); }
 
+/* 체크박스 (비공개 게시글) */
+.checkbox-row { margin-top: 18px; }
+.checkbox-label {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--text);
+  cursor: pointer;
+  margin: 0 !important;
+}
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-height: unset;
+  margin: 0 !important;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
 /* 홈 히어로 및 공지사항 */
 .hero {
   display: flex;
@@ -495,6 +519,18 @@ body {
   background-color: var(--hover-bg) !important;
 }
 
+/* 📖 읽은 게시글 표시 */
+.board-post-list .post-row-line.is-read .col-title {
+  color: var(--muted) !important;
+  font-weight: 400 !important;
+}
+
+/* 🔒 비공개(열람 불가) 게시글 표시 */
+.board-post-list .post-row-line.is-locked .col-title {
+  color: var(--muted) !important;
+  font-style: italic;
+}
+
 .board-post-list .post-content,
 .board-post-list .card-body,
 .board-post-list .content {
@@ -586,6 +622,23 @@ body {
 [data-theme="dark"] .board-post-list .tag-hot {
   background-color: #103a20;
   color: #7cf7ab;
+}
+
+/* 🔒 비공개 뱃지 */
+.tag-private, .detail-card .tag-private {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: var(--lock-bg) !important;
+  color: var(--lock-color) !important;
+  padding: 3px 8px !important;
+  border-radius: var(--radius-sm) !important;
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  margin-right: 7px !important;
+  flex-shrink: 0 !important;
+  height: 20px !important;
+  line-height: 1 !important;
 }
 
 .board-post-list .post-row-line .col-author,
@@ -727,6 +780,19 @@ body {
 .detail-card button.notice-toggle-btn:hover { background: var(--hover-bg); }
 .detail-card button.danger { color: var(--danger); border-color: var(--danger); }
 .detail-card button.danger:hover { background: rgba(239, 68, 68, 0.08); }
+
+/* 🔒 비공개 게시글 - 잠금 카드 */
+.locked-post-card {
+  margin-top: 24px;
+  padding: 48px 20px;
+  text-align: center;
+  background: var(--lock-bg);
+  border-radius: var(--radius-md);
+  color: var(--lock-color);
+}
+.locked-icon { font-size: 40px; margin-bottom: 12px; }
+.locked-post-card p { font-size: var(--font-size-md); font-weight: 700; color: var(--lock-color); margin-bottom: 6px; }
+.locked-post-card .meta-muted { font-size: var(--font-size-sm); color: var(--muted); }
 
 .comments { margin-top: var(--gap-lg); }
 .comments h2 { color: var(--text); margin-bottom: var(--gap-sm); font-size: var(--font-size-md); font-weight: 800; }
@@ -879,7 +945,44 @@ body {
 .cabbage-rank-comments { font-size: var(--font-size-xs); color: var(--muted); white-space: nowrap; }
 
 /* ==========================================================================
-   3-2. 👤 프로필 페이지
+   3-2. 📅 학사일정 UI
+   ========================================================================== */
+.calendar-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  margin-bottom: var(--gap-md);
+  box-shadow: var(--shadow-sm);
+}
+.calendar-section-title {
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+.calendar-event-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.calendar-event-row:last-child { border-bottom: none; }
+.calendar-event-date {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--table-head-bg);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.calendar-event-title { font-size: var(--font-size-base); color: var(--text); }
+
+/* ==========================================================================
+   3-3. 👤 프로필 페이지
    ========================================================================== */
 .profile-header-card {
   display: flex;
@@ -1515,6 +1618,9 @@ footer { text-align: center; color: var(--muted); font-size: var(--font-size-xs)
   .notification-panel, .admin-panel { width: 100%; max-width: 100vw; padding: 18px; }
 
   .reply-list { padding-left: 10px; }
+
+  .calendar-section { padding: 16px 14px; }
+  .calendar-event-row { flex-wrap: wrap; }
 
   .hero { padding: 28px 22px; }
   .hero h1 { font-size: 24px; }
